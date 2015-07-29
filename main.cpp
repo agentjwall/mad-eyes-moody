@@ -10,8 +10,13 @@ using namespace cv;
 bool calibration_done = false;
 Rect screen;
 typedef struct {
-    Point CenterPointOfEyes=Point(-1,-1);
-    Point NatPupilOffsetFromEyeCenter=Point(-1,-1);
+    Point CenterPointOfEyes;
+    Point OffsetFromEyeCenter;
+    int eyeLeftMax;
+    int eyeRightMax;
+    int eyeTopMax;
+    int eyeBottomMax;
+    int count;
 } EyeSettingsSt;
 
 EyeSettingsSt EyeSettings;
@@ -182,7 +187,7 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     // draw pupils
     circle(face_image, right_pupil, 3, Scalar(0, 255, 0));
     circle(face_image, left_pupil, 3, Scalar(0, 255, 0));
-    circle(face_image, center, 3, Scalar(255, 0, 0));
+    //circle(face_image, center, 3, Scalar(255, 0, 0));
 
     std::string left_eye_region_width = std::to_string(left_eye_region.x + (left_eye_region.width/2));
     std::string left_eye_region_height = std::to_string(left_eye_region.y + (left_eye_region.height/2));
@@ -205,13 +210,6 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
 
     //display
     //imshow("window", color_image);
-}
-
-Point TransformPupilPointToScreenPoint(Point pupil){
-    Point screen;
-    screen.x = pupil.x*50;
-    screen.y=pupil.y*50;
-    return screen;
 }
 
 int main() {
@@ -245,8 +243,8 @@ int main() {
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
-            cout << "\n";
+            //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
+            //cout << "\n";
         }
 
         // if 'q' is tapped, exit
@@ -258,39 +256,68 @@ int main() {
         EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
         EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
 
-        // if space is tap, take calibration
-        if(wait_key == 32)
-        {
-            EyeSettings.NatPupilOffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
-            EyeSettings.NatPupilOffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
+        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
+        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
 
-            cout << "Nat offset " << EyeSettings.NatPupilOffsetFromEyeCenter << endl;
-            imwrite("calibration.png", frame);
+        //left calibration 97
+        //right calibration 100
+        //bottom calibration 115
+        //top calibration 119
+        switch (wait_key) {
+            case 97:
+                EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+                imwrite("test/calib-left.png", frame);
+                break;
+            case 100:
+                EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+                imwrite("test/calib-right.png", frame);
+                break;
+            case 115:
+                EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+                imwrite("test/calib-bot.png", frame);
+                break;
+            case 119:
+                EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+                imwrite("test/calib-top.png", frame);
+                break;
         }
-        Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x, EyeSettings.CenterPointOfEyes.y + faces[0].y);
+
+        Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
+                                    EyeSettings.CenterPointOfEyes.y + faces[0].y);
         circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
 
-        //v for test
-        if(wait_key == 118)
+        //space for test
+        if(wait_key == 32)
         {
-            int XCenterPointOfPupils = (right_pupil.x + left_pupil.x)/2;
-            int YCenterPointOfPupils = (right_pupil.y + left_pupil.y)/2;
-            int xdiff = EyeSettings.CenterPointOfEyes.x - XCenterPointOfPupils - EyeSettings.NatPupilOffsetFromEyeCenter.x;
-            int ydiff = EyeSettings.CenterPointOfEyes.y - YCenterPointOfPupils - EyeSettings.NatPupilOffsetFromEyeCenter.y;
+            double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
+            double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
 
-            cout << "eye location: " << xdiff << "," << ydiff << endl;
+            double percentageWidth = pupilOffsetfromLeft / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
+            if(percentageWidth < 0){
+                percentageWidth = 0;
+            }else if(percentageWidth > 1){
+                percentageWidth = 1;
+            }
+            double percentageHeight = pupilOffsetfromBottom / (double)(EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax);
+            if(percentageHeight < 0){
+                percentageHeight = 0;
+            }else if(percentageHeight > 1){
+                percentageHeight = 1;
+            }
+
+            cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
+                 << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
             circle(frame, Point(
-                           XCenterPointOfPupils+faces[0].x,
-                           YCenterPointOfPupils+faces[0].y),
+                           (right_pupil.x + left_pupil.x)/2+faces[0].x,
+                           (right_pupil.y + left_pupil.y)/2+faces[0].y),
                    3, Scalar(0, 255, 0));
+            circle(frame, Point(
+                            frame.cols*(1-percentageWidth),
+                            frame.rows*(1-percentageHeight)),
+                   3, Scalar(255, 255, 0));
 
-            //map pupil to screen point
-            Point screenLocation = TransformPupilPointToScreenPoint(Point(xdiff,ydiff));
-            //cout << "screen location: " << screenLocation.x << "," << screenLocation.y << endl;
-
-            circle(frame, screenLocation, 3, Scalar(0,0,255));
-            imwrite("test.png", frame);
-
+            imwrite(("test/test"+std::to_string(count)+".png"), frame);
+            count++;
         }
 
         imshow("window", frame);
