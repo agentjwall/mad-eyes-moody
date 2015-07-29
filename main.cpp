@@ -3,6 +3,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
+#include <cmath>
 
 using namespace std;
 using namespace cv;
@@ -211,7 +212,31 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
 
 
 void display_point_on_screen(Mat background, Point point) {
-    circle(background, point, 3, Scalar(0,0,0));
+    circle(background, point, 5, Scalar(0,0,0)), 2;
+}
+
+void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess) {
+    int best_dist = -1;
+    Point best_point;
+
+    for (Point s: shapes) {
+        int dist = pow(s.x - guess.x, 2) + pow(s.y - guess.y, 2);
+        if (best_dist == -1 or dist < best_dist) {
+            best_dist = dist;
+            best_point = s;
+        }
+    }
+
+    for (Point s : shapes) {
+        if (s == best_point) {
+            circle(background, s, 20, Scalar(0,255,0), -1);
+            circle(background, s, 20, Scalar(0,0,0), 2);
+        } else {
+            circle(background, s, 20, Scalar(0,0,255), -1);
+            circle(background, s, 20, Scalar(0,0,0), 2);
+        }
+    }
+    circle(background, guess, 5, Scalar(0,0,0)), 2;
 }
 
 
@@ -235,23 +260,29 @@ int main() {
     }
 
     namedWindow("window");
-    Mat frame, shape_screen;
-    shape_screen = Mat(height,width, CV_8UC1);
+    Mat frame, shape_grey, shape_screen;
+    shape_grey = Mat(height,width, CV_8UC1);
     cap >> frame;
+    vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
+    cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
+
     int count = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
         shape_screen.setTo(cv::Scalar(255,255,255));
+
         face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
+        display_shapes_on_screen(shape_screen, shapes, Point(50,50));
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            display_point_on_screen(shape_screen, Point(50,50));
+            //display_point_on_screen(shape_screen, Point(50,50));
+            display_shapes_on_screen(shape_screen, shapes, Point(50,50));
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
         }
