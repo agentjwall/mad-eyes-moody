@@ -9,7 +9,12 @@ using namespace cv;
 
 bool calibration_done = false;
 Rect screen;
-Mat screen_image;
+typedef struct {
+    Point CenterPointOfEyes=Point(-1,-1);
+    Point NatPupilOffsetFromEyeCenter=Point(-1,-1);
+} EyeSettingsSt;
+
+EyeSettingsSt EyeSettings;
 
 
 void scale(const Mat &src,Mat &dst) {
@@ -183,9 +188,15 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     putText (color_image, "test", cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(0,0,0));
 
     //display
-    imshow("window", color_image);
+    //imshow("window", color_image);
 }
 
+Point TransformPupilPointToScreenPoint(Point pupil){
+    Point screen;
+    screen.x = pupil.x*50;
+    screen.y=pupil.y*50;
+    return screen;
+}
 
 int main() {
     //define font
@@ -196,8 +207,7 @@ int main() {
     cvInitFont(&font,CV_FONT_HERSHEY_SIMPLEX|CV_FONT_ITALIC, hScale,vScale,0,lineWidth);
 
     CascadeClassifier face_cascade;
-    face_cascade.load("haar_data/haarcascade_frontalface_alt_tree.xml");
-    screen_image = imread("screen_test.png");
+    face_cascade.load("haar_data/haarcascade_frontalface_alt.xml");
 
     VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -229,29 +239,45 @@ int main() {
             break;
         }
 
+        EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
+        EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
+
         // if space is tap, take calibration
-        else if(wait_key == 32) {
-            // left screen
-            if (count == 0) {
-                screen.x = (right_pupil.x - left_pupil.x)/2 + left_pupil.x;
-            }
-            // top screen
-            else if (count == 1) {
-                screen.y = (right_pupil.y + left_pupil.y)/2;
-            }
-            // right screen
-            else if (count == 2) {
-                assert (((right_pupil.x - left_pupil.x)/2 + left_pupil.x) > screen.x);
-                screen.width = ((right_pupil.x - left_pupil.x)/2 + left_pupil.x) - screen.x;
-            }
-            // bottom screen
-            else if (count == 3) {
-                assert (((right_pupil.y + left_pupil.y)/2) > screen.y);
-                screen.height = ((right_pupil.y + left_pupil.y)/2) - screen.y;
-                calibration_done = true;
-            }
-            count++;
+        if(wait_key == 32)
+        {
+            EyeSettings.NatPupilOffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
+            EyeSettings.NatPupilOffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
+
+            cout << "Nat offset " << EyeSettings.NatPupilOffsetFromEyeCenter << endl;
+            imwrite("calibration.png", frame);
         }
+        Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x, EyeSettings.CenterPointOfEyes.y + faces[0].y);
+        circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
+
+        //v for test
+        if(wait_key == 118)
+        {
+            int XCenterPointOfPupils = (right_pupil.x + left_pupil.x)/2;
+            int YCenterPointOfPupils = (right_pupil.y + left_pupil.y)/2;
+            int xdiff = EyeSettings.CenterPointOfEyes.x - XCenterPointOfPupils - EyeSettings.NatPupilOffsetFromEyeCenter.x;
+            int ydiff = EyeSettings.CenterPointOfEyes.y - YCenterPointOfPupils - EyeSettings.NatPupilOffsetFromEyeCenter.y;
+
+            cout << "eye location: " << xdiff << "," << ydiff << endl;
+            circle(frame, Point(
+                           XCenterPointOfPupils+faces[0].x,
+                           YCenterPointOfPupils+faces[0].y),
+                   3, Scalar(0, 255, 0));
+
+            //map pupil to screen point
+            Point screenLocation = TransformPupilPointToScreenPoint(Point(xdiff,ydiff));
+            //cout << "screen location: " << screenLocation.x << "," << screenLocation.y << endl;
+
+            circle(frame, screenLocation, 3, Scalar(0,0,255));
+            imwrite("test.png", frame);
+
+        }
+
+        imshow("window", frame);
 
         cap >> frame;
     }
