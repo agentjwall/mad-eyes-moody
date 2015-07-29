@@ -207,22 +207,17 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
-
-    //display
-    //imshow("window", color_image);
 }
 
 
 void display_point_on_screen(Mat background, Point point) {
-    circle(background, point, 3, Scalar(255,255,255));
-
-    imshow("shapes", background);
+    circle(background, point, 3, Scalar(0,0,0));
 }
 
 
 int main() {
     const int height = 1800;
-    const int width = 2880;
+    const int width = 1440;
 
     //define font
     CvFont font;
@@ -241,14 +236,14 @@ int main() {
 
     namedWindow("window");
     Mat frame, shape_screen;
-    shape_screen = Mat(Size(2880, 1800), CV_8UC3);
+    shape_screen = Mat(height,width, CV_8UC1);
     cap >> frame;
-    shape_screen = frame.clone();
     int count = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
+        shape_screen.setTo(cv::Scalar(255,255,255));
         face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
@@ -334,7 +329,8 @@ int main() {
             count++;
         }
 
-        imshow("window", frame);
+        //imshow("window", frame);
+        imshow("window", shape_screen);
 
         cap >> frame;
     }
