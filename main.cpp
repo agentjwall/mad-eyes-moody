@@ -16,6 +16,7 @@ typedef struct {
     int eyeRightMax;
     int eyeTopMax;
     int eyeBottomMax;
+    int count;
 } EyeSettingsSt;
 
 EyeSettingsSt EyeSettings;
@@ -256,19 +257,19 @@ int main() {
         switch (wait_key) {
             case 97:
                 EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("calib-left.png", frame);
+                imwrite("test/calib-left.png", frame);
                 break;
             case 100:
                 EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("calib-right.png", frame);
+                imwrite("test/calib-right.png", frame);
                 break;
             case 115:
                 EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("calib-bot.png", frame);
+                imwrite("test/calib-bot.png", frame);
                 break;
             case 119:
                 EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("calib-top.png", frame);
+                imwrite("test/calib-top.png", frame);
                 break;
         }
 
@@ -291,8 +292,13 @@ int main() {
                            (right_pupil.x + left_pupil.x)/2+faces[0].x,
                            (right_pupil.y + left_pupil.y)/2+faces[0].y),
                    3, Scalar(0, 255, 0));
+            circle(frame, Point(
+                            frame.cols*percentageWidth,
+                            frame.rows*percentageHeight),
+                   3, Scalar(255, 255, 0));
 
-            imwrite("test.png", frame);
+            imwrite(("test/test"+std::to_string(count)+".png"), frame);
+            count++;
         }
 
         imshow("window", frame);
