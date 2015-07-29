@@ -255,11 +255,21 @@ int main() {
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
         if (faces.size() > 0) {
-            find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-//            display_point_on_screen(shape_screen, Point(50,50));
-            //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
-            //cout << "\n";
+            Mat face = frame(faces[0]);
+            rectangle(frame, faces[0], Scalar(0, 255, 0));
+            if (eyes.size() >= 2) {
+                sort(eyes.begin(), eyes.end(), compare_area);
+                Rect left_eye(eyes[0]);
+                Rect right_eye(eyes[1]);
+                Point left_pupil = find_centers(face, left_eye, "left eye");
+                Point right_pupil = find_centers(face, right_eye, "right eye");
+
+                //            find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
+                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
+                //            display_point_on_screen(shape_screen, Point(50,50));
+                //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
+                //cout << "\n";
+            }
         }
 
         // if 'q' is tapped, exit
