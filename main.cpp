@@ -284,7 +284,17 @@ int main() {
             double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
 
             double percentageWidth = pupilOffsetfromLeft / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
+            if(percentageWidth < 0){
+                percentageWidth = 0;
+            }else if(percentageWidth > 1){
+                percentageWidth = 1;
+            }
             double percentageHeight = pupilOffsetfromBottom / (double)(EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax);
+            if(percentageHeight < 0){
+                percentageHeight = 0;
+            }else if(percentageHeight > 1){
+                percentageHeight = 1;
+            }
 
             cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
                  << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
@@ -293,8 +303,8 @@ int main() {
                            (right_pupil.y + left_pupil.y)/2+faces[0].y),
                    3, Scalar(0, 255, 0));
             circle(frame, Point(
-                            frame.cols*percentageWidth,
-                            frame.rows*percentageHeight),
+                            frame.cols*(1-percentageWidth),
+                            frame.rows*(1-percentageHeight)),
                    3, Scalar(255, 255, 0));
 
             imwrite(("test/test"+std::to_string(count)+".png"), frame);
