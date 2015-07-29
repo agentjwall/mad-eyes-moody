@@ -13,10 +13,10 @@ Rect screen;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
-    int eyeLeftMax;
-    int eyeRightMax;
-    int eyeTopMax;
-    int eyeBottomMax;
+    int eyeLeftMax=13;
+    int eyeRightMax=13;
+    int eyeTopMax=11;
+    int eyeBottomMax=11;
     int count;
 } EyeSettingsSt;
 
@@ -115,11 +115,12 @@ Point find_centers(Mat face_image, Rect eye_region, string window_name) {
         {
             for( int c = 0; c < 3; c++ )
             {
-                blurred.at<Vec3b>(y,x)[c] = saturate_cast<uchar>(( blurred.at<Vec3b>(y,x)[c] ) + 50 );
+                blurred.at<Vec3b>(y,x)[c] = saturate_cast<uchar>(1.01*( blurred.at<Vec3b>(y,x)[c] ) - 10 );
             }
         }
     }
 
+    //imshow("window", blurred);
 
     Mat outSum = Mat::zeros(eye_scaled_gray.rows, eye_scaled_gray.cols, CV_64F);
 
@@ -220,11 +221,6 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
 }
 
-
-void display_point_on_screen(Mat background, Point point) {
-    circle(background, point, 5, Scalar(0,0,0)), 2;
-}
-
 void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess) {
     int best_dist = -1;
     Point best_point;
@@ -246,7 +242,7 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
             circle(background, s, 20, Scalar(0,0,0), 2);
         }
     }
-    circle(background, guess, 5, Scalar(0,0,0)), 2;
+    circle(background, guess, 5, Scalar(0,0,0), -1);
 }
 
 
@@ -287,14 +283,9 @@ int main() {
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
-        display_shapes_on_screen(shape_screen, shapes, Point(50,50));
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            //display_point_on_screen(shape_screen, Point(50,50));
-            display_shapes_on_screen(shape_screen, shapes, Point(50,50));
-            //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
-            //cout << "\n";
+            display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
         }
 
         // if 'q' is tapped, exit
@@ -332,10 +323,6 @@ int main() {
                 break;
         }
 
-        Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
-                                    EyeSettings.CenterPointOfEyes.y + faces[0].y);
-        circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
-
         //space for test
         if(wait_key == 32)
         {
@@ -355,23 +342,48 @@ int main() {
                 percentageHeight = 1;
             }
 
+            cout << "Y "<<EyeSettings.CenterPointOfEyes.y << endl;
+
             cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
                  << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
+            //draw expected position
             circle(frame, Point(
-                           (right_pupil.x + left_pupil.x)/2+faces[0].x,
-                           (right_pupil.y + left_pupil.y)/2+faces[0].y),
-                   3, Scalar(0, 255, 0));
-            circle(frame, Point(
-                            frame.cols*(1-percentageWidth),
-                            frame.rows*(1-percentageHeight)),
-                   3, Scalar(255, 255, 0));
+                    (frame.cols*(percentageWidth)),
+                    (frame.rows*(percentageHeight))),
+                   5, Scalar(255, 255, 0), -1);
 
-            imwrite(("test/test"+std::to_string(count)+".png"), frame);
+            Point pupilCenter = Point((right_pupil.x + left_pupil.x)/2, (right_pupil.y + left_pupil.y)/2);
+            //draw pupil position
+            circle(frame, Point(
+                    pupilCenter.x + faces[0].x,
+                    pupilCenter.y + faces[0].y),
+                    3, Scalar(255, 0, 0), -1);
+            //draw pupil bounding box from config
+            rectangle(frame,
+                      Rect(
+                              EyeSettings.CenterPointOfEyes.x - EyeSettings.eyeRightMax + faces[0].x,
+                              EyeSettings.CenterPointOfEyes.y - EyeSettings.eyeBottomMax + faces[0].y,
+                              (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax),
+                              (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax)
+                      ),Scalar(255,255,0), 1);
+            //draw eye center
+            Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
+                                        EyeSettings.CenterPointOfEyes.y + faces[0].y);
+            circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
+
+            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*(1-percentageWidth), frame.rows*(1-percentageHeight)));
+            //imshow("window", shape_screen);
+
+            //imwrite(("test/test"+std::to_string(count)+".png"), shape_screen);
+            imwrite(("test/testcolor"+std::to_string(count)+".png"), frame);
             count++;
+
         }
 
-        //imshow("window", frame);
-        imshow("window", shape_screen);
+        //else
+        {
+            imshow("window", frame);
+        }
 
         cap >> frame;
     }

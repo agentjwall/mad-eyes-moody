@@ -1,7 +1,7 @@
 
 // eye size rations
 const int kEyePercentWidth = 20;
-const int kEyePercentHeight = 15;
+const int kEyePercentHeight = 13;
 const int kEyePercentTop = 32;
 const int kEyePercentSide = 22;
 
