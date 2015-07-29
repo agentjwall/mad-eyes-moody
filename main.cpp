@@ -226,7 +226,15 @@ int main() {
     face_cascade.load("haar_data/haarcascade_frontalface_alt.xml");
 
     VideoCapture cap(0);
-    if (!cap.isOpened()) {
+    Size size = Size((int)cap.get(CV_CAP_PROP_FRAME_WIDTH), (int)cap.get(CV_CAP_PROP_FRAME_HEIGHT));
+    VideoWriter outputVideo;
+//    outputVideo.set(CV_CAP_PROP_FOURCC, CV_FOURCC('m', 'p', '4', 'a'));
+//    int codec = static_cast<int>(cap.get(CV_CAP_PROP_FOURCC));
+//    Size size = Size((int)cap.get(CV_CAP_PROP_FRAME_WIDTH), (int)cap.get(CV_CAP_PROP_FRAME_HEIGHT));
+//    outputVideo.open("video.mov", outputVideo.fourcc('m','p','4','a'), 20, size, true);
+    outputVideo.open("video.mov", -1, 20, size, true);
+
+    if (!cap.isOpened() || !outputVideo.isOpened()) {
         return -1;
     }
 
@@ -296,6 +304,7 @@ int main() {
         imshow("window", frame);
 
         cap >> frame;
+        outputVideo << frame;
     }
 
     return 0;
