@@ -196,13 +196,6 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     //imshow("window", color_image);
 }
 
-Point TransformPupilPointToScreenPoint(Point pupil, int frameWidth, int frameHeight){
-    Point screen;
-    screen.x = frameWidth/2 + pupil.x*50;
-    screen.y= frameHeight/2 + pupil.y*50;
-    return screen;
-}
-
 int main() {
     //define font
     CvFont font;
