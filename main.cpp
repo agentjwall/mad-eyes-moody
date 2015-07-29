@@ -109,6 +109,16 @@ Point find_centers(Mat face_image, Rect eye_region, string window_name) {
     Mat blurred;
     GaussianBlur(eye_scaled_gray, blurred, Size(5, 5), 0, 0);
     bitwise_not(blurred, blurred);
+    for( int y = 0; y < blurred.rows; y++ )
+    {
+        for( int x = 0; x < blurred.cols; x++ )
+        {
+            for( int c = 0; c < 3; c++ )
+            {
+                blurred.at<Vec3b>(y,x)[c] = saturate_cast<uchar>(( blurred.at<Vec3b>(y,x)[c] ) + 50 );
+            }
+        }
+    }
 
 
     Mat outSum = Mat::zeros(eye_scaled_gray.rows, eye_scaled_gray.cols, CV_64F);
