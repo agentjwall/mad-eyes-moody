@@ -179,8 +179,24 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     circle(face_image, left_pupil, 3, Scalar(0, 255, 0));
     circle(face_image, center, 3, Scalar(255, 0, 0));
 
+    std::string left_eye_region_width = std::to_string(left_eye_region.x + (left_eye_region.width/2));
+    std::string left_eye_region_height = std::to_string(left_eye_region.y + (left_eye_region.height/2));
+
+    std::string right_eye_region_width = std::to_string(right_eye_region.x + (right_eye_region.width/2));
+    std::string right_eye_region_height = std::to_string(right_eye_region.y + (right_eye_region.height/2));
+
+    std::string xleft_pupil_string = std::to_string(left_pupil.x);
+    std::string yleft_pupil_string = std::to_string(left_pupil.y);
+
+    std::string xright_pupil_string = std::to_string(right_pupil.x);
+    std::string yright_pupil_string = std::to_string(right_pupil.y);
+
+    String text1 = "Pupil(L,R): ([" + xleft_pupil_string + "," + yleft_pupil_string + "],[" + xright_pupil_string + "," + yright_pupil_string + "])";
+    String text2 = "Center(L,R): ([" + left_eye_region_width + ", " + left_eye_region_height +"]," + "[" + right_eye_region_width + ", " + right_eye_region_height +"])";
+
+
     //add data
-    putText (color_image, "test", cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(0,0,0));
+    putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
 
     //display
     imshow("window", color_image);
