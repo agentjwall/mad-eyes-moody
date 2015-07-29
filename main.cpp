@@ -214,6 +214,10 @@ void display_point_on_screen(Mat background, Point point) {
     circle(background, point, 3, Scalar(0,0,0));
 }
 
+bool compare_area(Rect l, Rect r) {
+    return l.area() > r.area();
+}
+
 
 int main() {
     const int height = 1800;
@@ -226,8 +230,9 @@ int main() {
     int    lineWidth=6;
     cvInitFont(&font,CV_FONT_HERSHEY_SIMPLEX|CV_FONT_ITALIC, hScale,vScale,0,lineWidth);
 
-    CascadeClassifier face_cascade;
+    CascadeClassifier face_cascade, eye_cascade;
     face_cascade.load("haar_data/haarcascade_frontalface_alt.xml");
+    eye_cascade.load("haar_data/haarcascade_eye_tree_eyeglasses.xml");
 
     VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -241,17 +246,18 @@ int main() {
     int count = 0;
     while (1) {
         Mat gray_image;
-        vector<Rect> faces;
+        vector<Rect> faces, eyes;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
         shape_screen.setTo(cv::Scalar(255,255,255));
         face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        eye_cascade.detectMultiScale(gray_image(faces[0]), eyes,  1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            display_point_on_screen(shape_screen, Point(50,50));
+            display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
+//            display_point_on_screen(shape_screen, Point(50,50));
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
         }
@@ -329,8 +335,8 @@ int main() {
             count++;
         }
 
-        //imshow("window", frame);
-        imshow("window", shape_screen);
+        imshow("window", frame);
+//        imshow("window", shape_screen);
 
         cap >> frame;
     }
