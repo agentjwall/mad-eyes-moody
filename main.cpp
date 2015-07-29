@@ -255,16 +255,10 @@ int main() {
         Rect left_eye, right_eye;
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-<<<<<<< HEAD
             //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             display_point_on_screen(shape_screen, Point(50,50));
-            cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
-            cout << "\n";
-=======
-            display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
->>>>>>> master
         }
 
         // if 'q' is tapped, exit
