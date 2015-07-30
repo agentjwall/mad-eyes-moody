@@ -5,39 +5,21 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
 
-
 using namespace std;
 using namespace cv;
 
 #define DEBUG 0
 
-bool calibration_done=false;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
-    int eyeLeftMax=13;
-    int eyeRightMax=13;
-    int eyeTopMax=11;
-    int eyeBottomMax=11;
+    int eyeLeftMax=0;//13;
+    int eyeRightMax=0;//13;
+    int eyeTopMax=0;//11;
+    int eyeBottomMax=0;//11;
     int count = 0;
 } EyeSettingsSt;
-
 EyeSettingsSt EyeSettings;
-
-vector<string> &split(const string &s, char delim, vector<string> &elems) {
-    stringstream ss(s);
-    string item;
-    while (getline(ss, item, delim)) {
-        elems.push_back(item);
-    }
-    return elems;
-}
-
-vector<string> split(const string &s, char delim) {
-    vector<string> elems;
-    split(s, delim, elems);
-    return elems;
-}
 
 void scale(const Mat &src,Mat &dst) {
     cv::resize(src, dst, cv::Size(kFastEyeWidth,(((float)kFastEyeWidth)/src.cols) * src.rows));
@@ -238,9 +220,31 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
+
+    //display calibration points
+    if(EyeSettings.eyeTopMax) {
+        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 0, 255), -1);
+    }
+    if(EyeSettings.eyeRightMax) {
+        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeBottomMax) {
+        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeLeftMax) {
+        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
 }
 
-void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess) {
+void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess) {
     int best_dist = -1;
     Point best_point;
 
@@ -264,13 +268,7 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
     circle(background, guess, 5, Scalar(0,0,0), -1);
 }
 
-void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_pupil, Point right_pupil, Rect left_eye, Rect right_eye) {
-    EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
-    EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
-
-    EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
-    EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
-
+void ListenForCalibrate(int wait_key) {
     //left calibration 97
     //right calibration 100
     //bottom calibration 115
@@ -278,19 +276,27 @@ void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_p
     switch (wait_key) {
         case 97:
             EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
             imwrite("test/calib-left.png", frame);
+            #endif
             break;
         case 100:
             EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
             imwrite("test/calib-right.png", frame);
+            #endif
             break;
         case 115:
             EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
             imwrite("test/calib-bot.png", frame);
+            #endif
             break;
         case 119:
             EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
             imwrite("test/calib-top.png", frame);
+            #endif
             break;
     }
 }
@@ -298,7 +304,7 @@ void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_p
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
-    bool doCalibrate = false;
+    bool doCalibrate = true;
     bool doTest = false;
     bool doTrain = false;
     bool showCam = false;
@@ -392,7 +398,7 @@ int main(int argc, char* argv[]) {
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
         shape_screen.setTo(cv::Scalar(255,255,255));
 
-        face_cascade.detectMultiScale(gray_image, faces, 1.8, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        face_cascade.detectMultiScale(gray_image, faces, 1.7, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
@@ -407,14 +413,18 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        if(doCalibrate) {
-            calibrate(EyeSettings, frame, wait_key, left_pupil, right_pupil, left_eye, right_eye);
-        }
+        EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
+        EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
+
+        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
+        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
+
+        ListenForCalibrate(wait_key);
 
         //space for test
         if(wait_key == 32)
         {
-            doCalibrate = false;
+            doCalibrate = !doCalibrate;
         }
 
         if (!doCalibrate) {
