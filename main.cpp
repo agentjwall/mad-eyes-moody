@@ -308,10 +308,10 @@ int main() {
 //        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
 //        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
 
-        //left calibration 97
-        //right calibration 100
-        //bottom calibration 115
-        //top calibration 119
+        //left calibration 'a' == 97
+        //right calibration 'd' == 100
+        //bottom calibration 's' == 115
+        //top calibration 'w' == 119
         switch (wait_key) {
             case 97:
                 EyeSettings.eyeLeftMax = center.x;
@@ -335,43 +335,40 @@ int main() {
                 break;
         }
 
-        Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
-                                    EyeSettings.CenterPointOfEyes.y + faces[0].y);
-//        circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
+        //start using doing werk == spacebar
+        if(wait_key == 32)
+        {
+            calibration_done = true;
+        }
 
-        //space for test
-//        if(wait_key == 32)
-//        {
-//            double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
-//            double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
-//
-//            double percentageWidth = pupilOffsetfromLeft / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
-//            if(percentageWidth < 0){
-//                percentageWidth = 0;
-//            }else if(percentageWidth > 1){
-//                percentageWidth = 1;
-//            }
-//            double percentageHeight = pupilOffsetfromBottom / (double)(EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax);
-//            if(percentageHeight < 0){
-//                percentageHeight = 0;
-//            }else if(percentageHeight > 1){
-//                percentageHeight = 1;
-//            }
-//
+        if (calibration_done) {
+            double percentageWidth = center.x / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
+            if(percentageWidth < 0){
+                percentageWidth = 0;
+            }else if(percentageWidth > 1){
+                percentageWidth = 1;
+            }
+            double percentageHeight = center.y / (double)(EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax);
+            if(percentageHeight < 0){
+                percentageHeight = 0;
+            }else if(percentageHeight > 1){
+                percentageHeight = 1;
+            }
+            cout << "percentage width: " << percentageWidth << endl;
+//            cout << "percentage height: " << percentageHeight << endl;
+
+            //convert percentage to larger frame
+            Point looking(width * percentageWidth, height * percentageHeight);
+
 //            cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
 //                 << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
-////            circle(frame, Point(
-////                           (right_pupil.x + left_pupil.x)/2+faces[0].x,
-////                           (right_pupil.y + left_pupil.y)/2+faces[0].y),
-////                   3, Scalar(0, 255, 0));
-////            circle(frame, Point(
-////                            frame.cols*(1-percentageWidth),
-////                            frame.rows*(1-percentageHeight)),
-////                   3, Scalar(255, 255, 0));
-//
-//            imwrite(("test/test"+std::to_string(count)+".png"), frame);
-//            count++;
-//        }
+            circle(frame, looking, 3, Scalar(0, 255, 0));
+//            circle(frame, Point(
+//                            frame.cols*(1-percentageWidth),
+//                            frame.rows*(1-percentageHeight)),
+//                   3, Scalar(255, 255, 0));
+
+        }
 
         imshow("window", frame);
 //        imshow("window", shape_screen);
