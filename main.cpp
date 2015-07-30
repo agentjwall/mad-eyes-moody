@@ -304,7 +304,7 @@ void ListenForCalibrate(int wait_key) {
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
-    bool doCalibrate = false;
+    bool doCalibrate = true;
     bool doTest = false;
     bool doTrain = false;
     bool showCam = false;
@@ -424,7 +424,7 @@ int main(int argc, char* argv[]) {
         //space for test
         if(wait_key == 32)
         {
-            doCalibrate = false;
+            doCalibrate = !doCalibrate;
         }
 
         if (!doCalibrate) {
