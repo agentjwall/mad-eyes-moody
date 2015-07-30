@@ -4,8 +4,6 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include <stdlib.h>
-#include "string"
 
 using namespace std;
 using namespace cv;
@@ -21,29 +19,13 @@ bool calibration_done=false;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
-    int eyeLeftMax=13;
-    int eyeRightMax=13;
-    int eyeTopMax=11;
-    int eyeBottomMax=11;
-    int count;
+    int eyeLeftMax=0;//13;
+    int eyeRightMax=0;//13;
+    int eyeTopMax=0;//11;
+    int eyeBottomMax=0;//11;
+    int count = 0;
 } EyeSettingsSt;
-
 EyeSettingsSt EyeSettings;
-
-vector<string> &split(const string &s, char delim, vector<string> &elems) {
-    stringstream ss(s);
-    string item;
-    while (getline(ss, item, delim)) {
-        elems.push_back(item);
-    }
-    return elems;
-}
-
-vector<string> split(const string &s, char delim) {
-    vector<string> elems;
-    split(s, delim, elems);
-    return elems;
-}
 
 void scale(const Mat &src,Mat &dst) {
     cv::resize(src, dst, cv::Size(kFastEyeWidth,(((float)kFastEyeWidth)/src.cols) * src.rows));
@@ -53,7 +35,7 @@ Point unscale_point(Point p, Rect origSize) {
     float ratio = (((float)kFastEyeWidth)/origSize.width);
     int x = round(p.x / ratio);
     int y = round(p.y / ratio);
-    return cv::Point(x,y);
+    return Point(x,y);
 }
 
 Mat matrix_magnitude(Mat mat_x, Mat mat_y) {
@@ -109,7 +91,8 @@ void possible_centers(int x, int y, const Mat &blurred, double gx, double gy, Ma
  * eye_region: dimensions of eye region
  * window_name: display window name
  */
-Point find_centers(Mat face_image, Rect eye_region, string window_name) {
+Point find_centers(Mat face_image, Rect eye_region) {
+
     Mat eye_unscaled = face_image(eye_region);
 
     // scale and grey image
@@ -165,6 +148,7 @@ Point find_centers(Mat face_image, Rect eye_region, string window_name) {
     Point max_point;
     double max_value;
     minMaxLoc(out, NULL, &max_value, NULL, &max_point);
+
     Point pupil = unscale_point(max_point, eye_region);
     return pupil;
 }
@@ -191,8 +175,8 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     Rect right_eye_region(right_eye_x, eye_top, eye_width, eye_height);
 
     // get points of pupils within eye region
-    Point left_pupil = find_centers(face_image, left_eye_region, "left eye");
-    Point right_pupil = find_centers(face_image, right_eye_region, "right eye");
+    Point left_pupil = find_centers(face_image, left_eye_region);
+    Point right_pupil = find_centers(face_image, right_eye_region);
 
     // convert points to fit on frame image
     right_pupil.x += right_eye_region.x;
@@ -248,9 +232,31 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
+
+    //display calibration points
+    if(EyeSettings.eyeTopMax) {
+        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 0, 255), -1);
+    }
+    if(EyeSettings.eyeRightMax) {
+        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeBottomMax) {
+        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeLeftMax) {
+        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
 }
 
-void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess) {
+void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess) {
     int best_dist = -1;
     Point best_point;
 
@@ -274,6 +280,38 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
     circle(background, guess, 5, Scalar(0,0,0), -1);
 }
 
+void ListenForCalibrate(int wait_key) {
+    //left calibration 97
+    //right calibration 100
+    //bottom calibration 115
+    //top calibration 119
+    switch (wait_key) {
+        case 97:
+            EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
+            imwrite("test/calib-left.png", frame);
+            #endif
+            break;
+        case 100:
+            EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
+            imwrite("test/calib-right.png", frame);
+            #endif
+            break;
+        case 115:
+            EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
+            imwrite("test/calib-bot.png", frame);
+            #endif
+            break;
+        case 119:
+            EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
+            imwrite("test/calib-top.png", frame);
+            #endif
+            break;
+    }
+}
 
 void cluster_image(Mat shapes_image, vector<Point> region_centers, Point &point_dst) {
     // clear original image
@@ -310,10 +348,11 @@ vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_region
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
-    bool doCalibrate = false;
-    bool showShapes = false;
+    bool doCalibrate = true;
+    bool doTest = false;
+    bool doTrain = false;
     bool showCam = false;
-    bool hasCFile = false;
+    bool hasFile = false;
     int shapes_x = -1;
     int shapes_y = -1;
     ofstream file;
@@ -325,31 +364,56 @@ int main(int argc, char* argv[]) {
             } else if (string("--export").compare(argv[i]) == 0 || string("-e").compare(argv[i]) == 0) {
                 doExport = true;
             } else if (string("--calibrate").compare(argv[i]) == 0 || string("-c").compare(argv[i]) == 0) {
-               doCalibrate = true;
-            } else if (string("--show-shapes").compare(argv[i]) == 0 || string("-ss").compare(argv[i]) == 0) {
-                showShapes = true;
-            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-sc").compare(argv[i]) == 0) {
-                showCam = true;
+                doCalibrate = true;
+            } else if (string("--train").compare(argv[i]) == 0 || string("-T").compare(argv[i]) == 0) {
+                doTrain = true;
+            } else if (string("--test").compare(argv[i]) == 0 || string("-t").compare(argv[i]) == 0) {
+                doTest = true;
+            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-w").compare(argv[i]) == 0) {
+                doTrain = true;
             } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0) {
-                file.open(argv[i]);
-                if (!file) {
-                    cerr << "Failed to open <" << argv[i] << ">!";
-                    exit(1);
+                if (i+1 < argc) {
+                    file.open(argv[i + 1]);
+                    if (!file) {
+                        cerr << "Failed to open <" << argv[i] << ">!";
+                        exit(1);
+                    } else {
+                        hasFile = true;
+                    }
                 } else {
-                    hasCFile = true;
+                    cerr << "ERROR: please enter a file name!";
+                    exit(1);
                 }
             } else {
-                cerr << "ERROR: No argument " << argv[i] << " exists!";
+                cerr << "ERROR: No argument <" << argv[i] << "> exists!";
+                exit(1);
             }
         } else if (i+2 == argc){
             shapes_x = atoi(argv[i]);
             shapes_y = atoi(argv[i+1]);
             break;
         } else {
-            cerr << "Incorrect number of arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]" << i << argc;
+            cerr << "ERROR: Incorrect number of arguments!\n" <<
+                    "Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [--test| -T] [--train|-t] " <<
+                    "[--show-cam|-w] [--filename|-f CALIBRATION_FILE] [SHAPES_X SHAPES_Y]";
+            exit(1);
         }
     }
 
+<<<<<<< HEAD
+=======
+    if (showCam + doTrain + doTest > 1) {
+        cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
+        exit(1);
+    }
+
+    if ((doImport || doExport) && !hasFile) {
+        cerr << "You must define a file! -f <FILENAME>";
+    }
+
+
+
+>>>>>>> master
     const int height = 900;
     const int width = 1440;
 
@@ -390,7 +454,7 @@ int main(int argc, char* argv[]) {
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
 
-        face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        face_cascade.detectMultiScale(gray_image, faces, 1.7, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
@@ -411,36 +475,15 @@ int main(int argc, char* argv[]) {
         EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
         EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
 
-        //left calibration 97
-        //right calibration 100
-        //bottom calibration 115
-        //top calibration 119
-        switch (wait_key) {
-            case 97:
-                EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("test/calib-left.png", frame);
-                break;
-            case 100:
-                EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("test/calib-right.png", frame);
-                break;
-            case 115:
-                EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("test/calib-bot.png", frame);
-                break;
-            case 119:
-                EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("test/calib-top.png", frame);
-                break;
-        }
+        ListenForCalibrate(wait_key);
 
         //space for test
         if(wait_key == 32)
         {
-            calibration_done = true;
+            doCalibrate = !doCalibrate;
         }
 
-        if (calibration_done) {
+        if (!doCalibrate) {
             double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
             double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
 
@@ -485,9 +528,9 @@ int main(int argc, char* argv[]) {
                                         EyeSettings.CenterPointOfEyes.y + faces[0].y);
             circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
 
-            //imwrite(("test/test"+std::to_string(count)+".png"), shape_screen);
-            imwrite(("test/testcolor"+std::to_string(count)+".png"), frame);
-            count++;
+            //imwrite(("test/test"+std::to_string(EyeSettings.count)+".png"), shape_screen);
+            imwrite(("test/testcolor"+std::to_string(EyeSettings.count)+".png"), frame);
+            EyeSettings.count++;
             imshow("window", frame);
             #else
 //            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
@@ -515,7 +558,7 @@ int main(int argc, char* argv[]) {
         }
         //imshow("window", frame);
 
-        if(!calibration_done) {
+        if(doCalibrate) {
             imshow("window", frame);
         }
 
