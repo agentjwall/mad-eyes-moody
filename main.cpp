@@ -4,7 +4,7 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include <string>
+
 
 using namespace std;
 using namespace cv;
@@ -19,7 +19,7 @@ typedef struct {
     int eyeRightMax=13;
     int eyeTopMax=11;
     int eyeBottomMax=11;
-    int count;
+    int count = 0;
 } EyeSettingsSt;
 
 EyeSettingsSt EyeSettings;
@@ -264,14 +264,45 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
     circle(background, guess, 5, Scalar(0,0,0), -1);
 }
 
+void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_pupil, Point right_pupil, Rect left_eye, Rect right_eye) {
+    EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
+    EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
+
+    EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
+    EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
+
+    //left calibration 97
+    //right calibration 100
+    //bottom calibration 115
+    //top calibration 119
+    switch (wait_key) {
+        case 97:
+            EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            imwrite("test/calib-left.png", frame);
+            break;
+        case 100:
+            EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            imwrite("test/calib-right.png", frame);
+            break;
+        case 115:
+            EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            imwrite("test/calib-bot.png", frame);
+            break;
+        case 119:
+            EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            imwrite("test/calib-top.png", frame);
+            break;
+    }
+}
 
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
     bool doCalibrate = false;
-    bool showShapes = false;
+    bool doTest = false;
+    bool doTrain = false;
     bool showCam = false;
-    bool hasCFile = false;
+    bool hasFile = false;
     int shapes_x = -1;
     int shapes_y = -1;
     ofstream file;
@@ -283,31 +314,53 @@ int main(int argc, char* argv[]) {
             } else if (string("--export").compare(argv[i]) == 0 || string("-e").compare(argv[i]) == 0) {
                 doExport = true;
             } else if (string("--calibrate").compare(argv[i]) == 0 || string("-c").compare(argv[i]) == 0) {
-               doCalibrate = true;
-            } else if (string("--show-shapes").compare(argv[i]) == 0 || string("-ss").compare(argv[i]) == 0) {
-                showShapes = true;
-            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-sc").compare(argv[i]) == 0) {
-                showCam = true;
+                doCalibrate = true;
+            } else if (string("--train").compare(argv[i]) == 0 || string("-T").compare(argv[i]) == 0) {
+                doTrain = true;
+            } else if (string("--test").compare(argv[i]) == 0 || string("-t").compare(argv[i]) == 0) {
+                doTest = true;
+            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-w").compare(argv[i]) == 0) {
+                doTrain = true;
             } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0) {
-                file.open(argv[i]);
-                if (!file) {
-                    cerr << "Failed to open <" << argv[i] << ">!";
-                    exit(1);
+                if (i+1 < argc) {
+                    file.open(argv[i + 1]);
+                    if (!file) {
+                        cerr << "Failed to open <" << argv[i] << ">!";
+                        exit(1);
+                    } else {
+                        hasFile = true;
+                    }
                 } else {
-                    hasCFile = true;
+                    cerr << "ERROR: please enter a file name!";
+                    exit(1);
                 }
             } else {
-                cerr << "ERROR: No argument " << argv[i] << " exists!";
+                cerr << "ERROR: No argument <" << argv[i] << "> exists!";
+                exit(1);
             }
         } else if (i+2 == argc){
             shapes_x = atoi(argv[i]);
             shapes_y = atoi(argv[i+1]);
             break;
         } else {
-            cerr << "Incorrect number of arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]" << i << argc;
+            cerr << "ERROR: Incorrect number of arguments!\n" <<
+                    "Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [--test| -T] [--train|-t] " <<
+                    "[--show-cam|-w] [--filename|-f CALIBRATION_FILE] [SHAPES_X SHAPES_Y]";
+            exit(1);
         }
     }
-    
+
+    if (showCam + doTrain + doTest > 1) {
+        cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
+        exit(1);
+    }
+
+    if ((doImport || doExport) && !hasFile) {
+        cerr << "You must define a file! -f <FILENAME>";
+    }
+
+
+
     const int height = 900;
     const int width = 1440;
 
@@ -354,42 +407,17 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
-        EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
-
-        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
-        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
-
-        //left calibration 97
-        //right calibration 100
-        //bottom calibration 115
-        //top calibration 119
-        switch (wait_key) {
-            case 97:
-                EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("test/calib-left.png", frame);
-                break;
-            case 100:
-                EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("test/calib-right.png", frame);
-                break;
-            case 115:
-                EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("test/calib-bot.png", frame);
-                break;
-            case 119:
-                EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("test/calib-top.png", frame);
-                break;
+        if(doCalibrate) {
+            calibrate(EyeSettings, frame, wait_key, left_pupil, right_pupil, left_eye, right_eye);
         }
 
         //space for test
         if(wait_key == 32)
         {
-            calibration_done = true;
+            doCalibrate = false;
         }
 
-        if (calibration_done) {
+        if (!doCalibrate) {
             double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
             double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
 
@@ -434,9 +462,9 @@ int main(int argc, char* argv[]) {
                                         EyeSettings.CenterPointOfEyes.y + faces[0].y);
             circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
 
-            //imwrite(("test/test"+std::to_string(count)+".png"), shape_screen);
-            imwrite(("test/testcolor"+std::to_string(count)+".png"), frame);
-            count++;
+            //imwrite(("test/test"+std::to_string(EyeSettings.count)+".png"), shape_screen);
+            imwrite(("test/testcolor"+std::to_string(EyeSettings.count)+".png"), frame);
+            EyeSettings.count++;
             imshow("window", frame);
             #else
             display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
@@ -444,7 +472,7 @@ int main(int argc, char* argv[]) {
             #endif
         }
 
-        if(!calibration_done) {
+        if(doCalibrate) {
             imshow("window", frame);
         }
 
