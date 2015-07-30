@@ -14,7 +14,7 @@ using namespace cv;
 
 Rect screen;
 int duration = 20;
-bool calibration_done=false;
+//bool calibration_done=false;
 
 typedef struct {
     Point CenterPointOfEyes;
@@ -191,7 +191,7 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     right_eye_region_dst = right_eye_region;
 }
 
-void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region, int record = 0) {
+void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region, int record = 0, bool doCalibration = false) {
     Mat face_image = color_image(face);
 
     // draw eye regions
@@ -223,7 +223,7 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     String text1 = "Pupil(L,R): ([" + xleft_pupil_string + "," + yleft_pupil_string + "],[" + xright_pupil_string + "," + yright_pupil_string + "])";
     String text2 = "Center(L,R): ([" + left_eye_region_width + ", " + left_eye_region_height +"]," + "[" + right_eye_region_width + ", " + right_eye_region_height +"])";
 
-    if (calibration_done && record) {
+    if (doCalibration && record) {
         cout << xleft_pupil_string << "," << yleft_pupil_string << ";"
              << xright_pupil_string << "," << yright_pupil_string << ";"
              << left_eye_region_width << "," << left_eye_region_height << ";"
@@ -317,10 +317,15 @@ void cluster_image(Mat shapes_image, vector<Point> region_centers, Point &point_
     // clear original image
     shapes_image.setTo(cv::Scalar(255,255,255));
     //choose random region
-    int region = rand() % region_centers.size();
-    Point point = region_centers[region];
+    static int index = 0;
+//    int region = rand() % region_centers.size();
+    Point point = region_centers[index];
     circle(shapes_image, point, 20, Scalar(0,255,0), -1);
     point_dst = point;
+    index++;
+    if (index == region_centers.size())  {
+        index = 0;
+    }
 }
 
 vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_regions) {
@@ -435,6 +440,7 @@ int main(int argc, char* argv[]) {
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
     shape_screen.setTo(cv::Scalar(255,255,255));
     vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
+    random_shuffle(region_centers.begin(), region_centers.end());
 
     #if CLUSTERING
     Point displaying;
@@ -546,7 +552,7 @@ int main(int argc, char* argv[]) {
                 record = 1;
             }
             if (record) {
-                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye, record);
+                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye, record, !doCalibrate);
                 cout << displaying.x << "," << displaying.y << ";" << endl;
             }
             #endif
