@@ -12,9 +12,10 @@ using namespace cv;
 
 
 #define DEBUG 0
+#define CLUSTERING 1
 
 Rect screen;
-int duration = 15;
+int duration = 20;
 bool calibration_done=false;
 
 typedef struct {
@@ -206,7 +207,7 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     right_eye_region_dst = right_eye_region;
 }
 
-void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region) {
+void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region, int record = 0) {
     Mat face_image = color_image(face);
 
     // draw eye regions
@@ -238,6 +239,12 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     String text1 = "Pupil(L,R): ([" + xleft_pupil_string + "," + yleft_pupil_string + "],[" + xright_pupil_string + "," + yright_pupil_string + "])";
     String text2 = "Center(L,R): ([" + left_eye_region_width + ", " + left_eye_region_height +"]," + "[" + right_eye_region_width + ", " + right_eye_region_height +"])";
 
+    if (calibration_done && record) {
+        cout << xleft_pupil_string << "," << yleft_pupil_string << ";"
+             << xright_pupil_string << "," << yright_pupil_string << ";"
+             << left_eye_region_width << "," << left_eye_region_height << ";"
+             << right_eye_region_width << "," << right_eye_region_height << ";";
+    }
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
@@ -268,13 +275,14 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
 }
 
 
-void cluster_image(Mat shapes_image, vector<Point> region_centers) {
+void cluster_image(Mat shapes_image, vector<Point> region_centers, Point &point_dst) {
     // clear original image
     shapes_image.setTo(cv::Scalar(255,255,255));
     //choose random region
     int region = rand() % region_centers.size();
     Point point = region_centers[region];
     circle(shapes_image, point, 20, Scalar(0,255,0), -1);
+    point_dst = point;
 }
 
 vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_regions) {
@@ -368,10 +376,15 @@ int main(int argc, char* argv[]) {
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
     shape_screen.setTo(cv::Scalar(255,255,255));
     vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
-    cluster_image(shape_screen, region_centers);
+
+    #if CLUSTERING
+    Point displaying;
+    cluster_image(shape_screen, region_centers, displaying);
+    #endif
 
     int count = 0;
     int timer = 0;
+    int record = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
@@ -477,17 +490,30 @@ int main(int argc, char* argv[]) {
             count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+//            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+//            imshow("window", shape_screen);
+            #endif
+
+            #if CLUSTERING
+            if(timer == duration) {
+                cluster_image(shape_screen, region_centers, displaying);
+                timer = 0;
+                record = 0;
+            }
+            timer++;
             imshow("window", shape_screen);
+
+            //looking at new point, start recording data 'z'
+            if (wait_key == 122) {
+                record = 1;
+            }
+            if (record) {
+                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye, record);
+                cout << displaying.x << "," << displaying.y << ";" << endl;
+            }
             #endif
         }
         //imshow("window", frame);
-        if(timer == duration) {
-            cluster_image(shape_screen, region_centers);
-            timer = 0;
-        }
-        timer++;
-        imshow("window", shape_screen);
 
         if(!calibration_done) {
             imshow("window", frame);
