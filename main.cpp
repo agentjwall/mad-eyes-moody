@@ -352,7 +352,7 @@ int main() {
             //draw expected position on screen from pupils
             circle(frame, Point(
                            (frame.cols*(percentageWidth)),
-                           (frame.rows*(percentageHeight))),
+                           (frame.rows*(1-percentageHeight))),
                    5, Scalar(255, 255, 0), -1);
 
             Point pupilCenter = Point((right_pupil.x + left_pupil.x)/2, (right_pupil.y + left_pupil.y)/2);
@@ -379,7 +379,7 @@ int main() {
             count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*percentageHeight));
+            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
             imshow("window", shape_screen);
             #endif
         }
