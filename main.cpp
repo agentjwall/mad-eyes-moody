@@ -7,8 +7,9 @@
 using namespace std;
 using namespace cv;
 
-#define DEBUG 1
+#define DEBUG 0
 
+bool calibration_done=false;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
@@ -108,6 +109,7 @@ Point find_centers(Mat face_image, Rect eye_region, string window_name) {
     Mat blurred;
     GaussianBlur(eye_scaled_gray, blurred, Size(5, 5), 0, 0);
     bitwise_not(blurred, blurred);
+    //increase contrast and decrease brightness
     for( int y = 0; y < blurred.rows; y++ )
     {
         for( int x = 0; x < blurred.cols; x++ )
@@ -271,7 +273,6 @@ int main() {
     vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
 
-    int count = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
@@ -325,6 +326,10 @@ int main() {
         //space for test
         if(wait_key == 32)
         {
+            calibration_done = true;
+        }
+
+        if (calibration_done) {
             double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
             double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
 
@@ -346,16 +351,16 @@ int main() {
                  << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
             //draw expected position on screen from pupils
             circle(frame, Point(
-                    (frame.cols*(percentageWidth)),
-                    (frame.rows*(percentageHeight))),
+                           (frame.cols*(percentageWidth)),
+                           (frame.rows*(percentageHeight))),
                    5, Scalar(255, 255, 0), -1);
 
             Point pupilCenter = Point((right_pupil.x + left_pupil.x)/2, (right_pupil.y + left_pupil.y)/2);
             //draw pupil position
             circle(frame, Point(
-                    pupilCenter.x + faces[0].x,
-                    pupilCenter.y + faces[0].y),
-                    3, Scalar(255, 0, 0), -1);
+                           pupilCenter.x + faces[0].x,
+                           pupilCenter.y + faces[0].y),
+                   3, Scalar(255, 0, 0), -1);
             //draw pupil bounding box from config
             rectangle(frame,
                       Rect(
@@ -368,16 +373,20 @@ int main() {
             Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
                                         EyeSettings.CenterPointOfEyes.y + faces[0].y);
             circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
+
             //imwrite(("test/test"+std::to_string(count)+".png"), shape_screen);
             imwrite(("test/testcolor"+std::to_string(count)+".png"), frame);
             count++;
+            imshow("window", frame);
             #else
             display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*percentageHeight));
             imshow("window", shape_screen);
             #endif
         }
 
-        imshow("window", frame);
+        if(!calibration_done) {
+            imshow("window", frame);
+        }
 
         cap >> frame;
     }
