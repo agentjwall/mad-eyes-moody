@@ -4,6 +4,7 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
+#include <sys/stat.h>
 
 using namespace std;
 using namespace cv;
@@ -25,6 +26,21 @@ typedef struct {
     int count = 0;
 } EyeSettingsSt;
 EyeSettingsSt EyeSettings;
+
+vector<string> &split(const string &s, char delim, vector<string> &elems) {
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+vector<string> split(const string &s, char delim) {
+    vector<string> elems;
+    split(s, delim, elems);
+    return elems;
+}
 
 void scale(const Mat &src,Mat &dst) {
     cv::resize(src, dst, cv::Size(kFastEyeWidth,(((float)kFastEyeWidth)/src.cols) * src.rows));
@@ -382,7 +398,7 @@ int main(int argc, char* argv[]) {
     bool hasFile = false;
     int shapes_x = -1;
     int shapes_y = -1;
-    ofstream file;
+    fstream file;
 
     for(int i = 1; i < argc; i++) {
         if (string("-").compare(string(argv[i]).substr(0,1)) == 0) {
@@ -398,14 +414,21 @@ int main(int argc, char* argv[]) {
                 doTest = true;
             } else if (string("--show-cam").compare(argv[i]) == 0 || string("-w").compare(argv[i]) == 0) {
                 doTrain = true;
-            } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0) {
+            } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0 || string("-F").compare(argv[i]) == 0) {
                 if (i+1 < argc) {
-                    file.open(argv[i + 1]);
-                    if (!file) {
-                        cerr << "Failed to open <" << argv[i] << ">!";
-                        exit(1);
+                    struct stat buffer;
+                    if (stat (string(argv[i+1]).c_str(), &buffer) != 0 || string("-F").compare(argv[i]) == 0                                           ) {
+                        file.open(argv[i + 1]);
+                        if (!file) {
+                            cerr << "Failed to open <" << argv[i] << ">!";
+                            exit(1);
+                        } else {
+                            hasFile = true;
+                            i++;
+                        }
                     } else {
-                        hasFile = true;
+                        cerr << "ERROR: File <" << argv[i +1] << "> already exists!";
+                        exit(1);
                     }
                 } else {
                     cerr << "ERROR: please enter a file name!";
@@ -435,6 +458,26 @@ int main(int argc, char* argv[]) {
         cerr << "You must define a file! -f <FILENAME>";
     }
 
+    string line;
+    if(doImport) {
+            while(getline(file, line)) {
+                vector<string> esArgs = split(line, ';');
+                if (esArgs.size() != 7) {
+                    cerr << "ERROR: Malformed file imported!";
+                    exit(1);
+                }
+
+                vector<string> cpArgs = split(esArgs[0], ',');
+                EyeSettings.CenterPointOfEyes = Point(atoi(cpArgs[0].c_str()), atoi(cpArgs[1].c_str()));
+                vector<string> ocArgs = split(esArgs[1], ',');
+                EyeSettings.OffsetFromEyeCenter = Point(atoi(ocArgs[0].c_str()), atoi(ocArgs[1].c_str()));
+                EyeSettings.eyeLeftMax = atoi(esArgs[2].c_str());
+                EyeSettings.eyeRightMax = atoi(esArgs[3].c_str());
+                EyeSettings.eyeTopMax = atoi(esArgs[4].c_str());
+                EyeSettings.eyeBottomMax = atoi(esArgs[5].c_str());
+                EyeSettings.count = atoi(esArgs[6].c_str());
+            }
+        }
 
     const int height = 900;
     const int width = 1440;
@@ -503,7 +546,19 @@ int main(int argc, char* argv[]) {
         //space for test
         if(wait_key == 32)
         {
-            doCalibrate = !doCalibrate;
+            doCalibrate = false;
+            if(doExport) {
+                file << to_string(EyeSettings.CenterPointOfEyes.x) << "," <<
+                                to_string(EyeSettings.CenterPointOfEyes.y) << ";";
+                file << to_string(EyeSettings.OffsetFromEyeCenter.x) << "," <<
+                                to_string(EyeSettings.OffsetFromEyeCenter.y) << ";";
+                file << to_string(EyeSettings.eyeLeftMax) << ";";
+                file << to_string(EyeSettings.eyeRightMax) << ";";
+                file << to_string(EyeSettings.eyeTopMax) << ";";
+                file << to_string(EyeSettings.eyeBottomMax) << ";";
+                file << to_string(EyeSettings.count) << ";";
+                file.close();
+            }
         }
 
         if (!doCalibrate) {
