@@ -399,9 +399,6 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
     }
-
-<<<<<<< HEAD
-=======
     if (showCam + doTrain + doTest > 1) {
         cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
         exit(1);
@@ -412,8 +409,6 @@ int main(int argc, char* argv[]) {
     }
 
 
-
->>>>>>> master
     const int height = 900;
     const int width = 1440;
 
