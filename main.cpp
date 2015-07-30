@@ -265,7 +265,7 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
 }
 
 
-void cluster_image(Mat shapes_image, int x_regions, int y_regions, int window_height, int window_width) {
+void cluster_image(Mat shapes_image, int x_regions, int y_regions) {
     // draw regions
     int region_width = shapes_image.cols / x_regions;
     int region_height = shapes_image.rows / y_regions;
@@ -279,7 +279,27 @@ void cluster_image(Mat shapes_image, int x_regions, int y_regions, int window_he
         y+= region_height;
         line(shapes_image, Point(0, y), Point(shapes_image.cols, y), Scalar(0, 255, 0), 3, 8);
     }
+}
 
+vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_regions) {
+    vector<Point> regions_centers;
+    int region_width = shapes_image.cols / x_regions;
+    int region_height = shapes_image.rows / y_regions;
+    int start_center_x = region_width/2;
+    int start_center_y = region_height/2;
+    int curr_x = 0, curr_y = 0;
+
+    for (int x = 0; x < x_regions; x++) {
+        curr_x = start_center_x + ((x) * region_width);
+
+        for(int y = 0; y < y_regions; y++) {
+            curr_y = start_center_y + ((y) * region_height);
+            Point center(curr_x, curr_y);
+            regions_centers.push_back(center);
+            cout << "center: " << center << endl;
+        }
+    }
+    return regions_centers;
 }
 
 
@@ -348,27 +368,27 @@ int main(int argc, char* argv[]) {
     Mat frame, shape_grey, shape_screen;
     shape_grey = Mat(height,width, CV_8UC1);
     cap >> frame;
-    vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
+//    vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
+    shape_screen.setTo(cv::Scalar(255,255,255));
+    vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
 
     int count = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
-        shape_screen.setTo(cv::Scalar(255,255,255));
 
         face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
-        display_shapes_on_screen(shape_screen, shapes, Point(50,50));
+        display_shapes_on_screen(shape_screen, region_centers, Point(50,50));
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //display_point_on_screen(shape_screen, Point(50,50));
-            display_shapes_on_screen(shape_screen, shapes, Point(50,50));
-            cluster_image(shape_screen, shapes_x, shapes_y, height, width);
+            display_shapes_on_screen(shape_screen, region_centers, Point(50,50));
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
         }
