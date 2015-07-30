@@ -1,9 +1,10 @@
 #include <iostream>
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include <cmath>
+#include "string"
 
 using namespace std;
 using namespace cv;
@@ -22,6 +23,20 @@ typedef struct {
 
 EyeSettingsSt EyeSettings;
 
+vector<string> &split(const string &s, char delim, vector<string> &elems) {
+    stringstream ss(s);
+    string item;
+    while (getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+vector<string> split(const string &s, char delim) {
+    vector<string> elems;
+    split(s, delim, elems);
+    return elems;
+}
 
 void scale(const Mat &src,Mat &dst) {
     cv::resize(src, dst, cv::Size(kFastEyeWidth,(((float)kFastEyeWidth)/src.cols) * src.rows));
@@ -240,8 +255,60 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
 }
 
 
-int main() {
-    const int height = 1800;
+int main(int argc, char* argv[]) {
+    bool doImport = false;
+    bool doExport = false;
+    bool doCalibrate = false;
+    bool showShapes = false;
+    bool showCam = false;
+    bool hasCFile = false;
+    int shapes_x = -1;
+    int shapes_y = -1;
+    ofstream file;
+
+    for(int i = 0; i < argc; i++) {
+        if (string("-").compare(string(argv[i]).substr(0,1))) {
+            if (string("--import").compare(argv[i]) == 0 || string("-i").compare(argv[i]) == 0) {
+                doImport = true;
+            } else if (string("--export").compare(argv[i]) == 0 || string("-e").compare(argv[i]) == 0) {
+                doExport = true;
+            } else if (string("--calibrate").compare(argv[i]) == 0 || string("-c").compare(argv[i]) == 0) {
+               doCalibrate = true;
+            } else if (string("--show-shapes").compare(argv[i]) == 0 || string("-ss").compare(argv[i]) == 0) {
+                showShapes = true;
+            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-sc").compare(argv[i]) == 0) {
+                showCam = true;
+            } else {
+                cerr << "ERROR: No argument " << argv[i] << " exists!";
+            }
+        } else if (!hasCFile) {
+            file.open(argv[i]);
+            if (!file) {
+                cerr << "Failed to open <" << argv[i] << ">!";
+                exit(1);
+            } else {
+                hasCFile = true;
+            }
+        } else if (i+1 < argc){
+            shapes_x = atoi(argv[i]);
+            shapes_y = atoi(argv[i+1]);
+
+        } else {
+            cerr << "Too many arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]";
+        }
+    }
+
+    cout << doImport << "\n";
+    cout << doExport << "\n";
+    cout << doCalibrate << "\n";
+    cout << showShapes << "\n";
+    cout << showCam << "\n";
+    cout << hasCFile << "\n";
+    cout << shapes_x << "\n";
+    cout << shapes_y << "\n";
+
+    exit(0);
+    const int height = 900;
     const int width = 1440;
 
     //define font
