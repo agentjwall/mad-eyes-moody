@@ -4,7 +4,6 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include "string"
 
 using namespace std;
 using namespace cv;
@@ -269,9 +268,10 @@ int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
     bool doCalibrate = false;
-    bool showShapes = false;
+    bool doTest = false;
+    bool doTrain = false;
     bool showCam = false;
-    bool hasCFile = false;
+    bool hasFile = false;
     int shapes_x = -1;
     int shapes_y = -1;
     ofstream file;
@@ -283,31 +283,53 @@ int main(int argc, char* argv[]) {
             } else if (string("--export").compare(argv[i]) == 0 || string("-e").compare(argv[i]) == 0) {
                 doExport = true;
             } else if (string("--calibrate").compare(argv[i]) == 0 || string("-c").compare(argv[i]) == 0) {
-               doCalibrate = true;
-            } else if (string("--show-shapes").compare(argv[i]) == 0 || string("-ss").compare(argv[i]) == 0) {
-                showShapes = true;
-            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-sc").compare(argv[i]) == 0) {
-                showCam = true;
+                doCalibrate = true;
+            } else if (string("--train").compare(argv[i]) == 0 || string("-T").compare(argv[i]) == 0) {
+                doTrain = true;
+            } else if (string("--test").compare(argv[i]) == 0 || string("-t").compare(argv[i]) == 0) {
+                doTest = true;
+            } else if (string("--show-cam").compare(argv[i]) == 0 || string("-w").compare(argv[i]) == 0) {
+                doTrain = true;
             } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0) {
-                file.open(argv[i]);
-                if (!file) {
-                    cerr << "Failed to open <" << argv[i] << ">!";
-                    exit(1);
+                if (i+1 < argc) {
+                    file.open(argv[i + 1]);
+                    if (!file) {
+                        cerr << "Failed to open <" << argv[i] << ">!";
+                        exit(1);
+                    } else {
+                        hasFile = true;
+                    }
                 } else {
-                    hasCFile = true;
+                    cerr << "ERROR: please enter a file name!";
+                    exit(1);
                 }
             } else {
-                cerr << "ERROR: No argument " << argv[i] << " exists!";
+                cerr << "ERROR: No argument <" << argv[i] << "> exists!";
+                exit(1);
             }
         } else if (i+2 == argc){
             shapes_x = atoi(argv[i]);
             shapes_y = atoi(argv[i+1]);
             break;
         } else {
-            cerr << "Incorrect number of arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]" << i << argc;
+            cerr << "ERROR: Incorrect number of arguments!\n" <<
+                    "Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [--test| -T] [--train|-t] " <<
+                    "[--show-cam|-w] [--filename|-f CALIBRATION_FILE] [SHAPES_X SHAPES_Y]";
+            exit(1);
         }
     }
-    
+
+    if (showCam + doTrain + doTest > 1) {
+        cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
+        exit(1);
+    }
+
+    if ((doImport || doExport) && !hasFile) {
+        cerr << "You must define a file! -f <FILENAME>";
+    }
+
+
+
     const int height = 900;
     const int width = 1440;
 
