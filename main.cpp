@@ -10,7 +10,7 @@ using namespace std;
 using namespace cv;
 
 
-#define DEBUG 0
+#define DEBUG 1
 #define CLUSTERING 0
 
 Rect screen;
@@ -498,6 +498,8 @@ int main(int argc, char* argv[]) {
 
     CascadeClassifier face_cascade;
     face_cascade.load("haar_data/haarcascade_frontalface_alt.xml");
+    CascadeClassifier eye_cascade;
+    eye_cascade.load("haar_data/haarcascade_eye_tree_eyeglasses.xml");
 
     VideoCapture cap(0);
     if (!cap.isOpened()) {
@@ -533,6 +535,15 @@ int main(int argc, char* argv[]) {
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
+            vector<Rect> eyes;
+            Mat face_image = gray_image(faces[0]);
+            GaussianBlur(face_image, face_image, Size(5,5), 0, 0);
+            eye_cascade.detectMultiScale(face_image, eyes, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE);
+            for(int i=0;i<eyes.size();i++){
+                eyes[i].x+=faces[0].x;
+                eyes[i].y+=faces[0].y;
+                rectangle(frame, eyes[i], Scalar(0,255,0),2);
+            }
         }
 
         // if 'q' is tapped, exit
