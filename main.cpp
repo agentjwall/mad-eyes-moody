@@ -13,23 +13,13 @@ using namespace cv;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
-    int eyeLeftMax=13;
-    int eyeRightMax=13;
-    int eyeTopMax=11;
-    int eyeBottomMax=11;
+    int eyeLeftMax=0;//13;
+    int eyeRightMax=0;//13;
+    int eyeTopMax=0;//11;
+    int eyeBottomMax=0;//11;
     int count = 0;
 } EyeSettingsSt;
-
 EyeSettingsSt EyeSettings;
-
-vector<string> &split(const string &s, char delim, vector<string> &elems) {
-    stringstream ss(s);
-    string item;
-    while (getline(ss, item, delim)) {
-        elems.push_back(item);
-    }
-    return elems;
-}
 
 void scale(const Mat &src,Mat &dst) {
     cv::resize(src, dst, cv::Size(kFastEyeWidth,(((float)kFastEyeWidth)/src.cols) * src.rows));
