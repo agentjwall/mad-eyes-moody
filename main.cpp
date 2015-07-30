@@ -265,6 +265,24 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
 }
 
 
+void cluster_image(Mat shapes_image, int x_regions, int y_regions, int window_height, int window_width) {
+    // draw regions
+    int region_width = shapes_image.cols / x_regions;
+    int region_height = shapes_image.rows / y_regions;
+    int x = 0, y = 0;
+
+    while (x < shapes_image.cols) {
+        x += region_width;
+        line(shapes_image, Point(x, 0), Point(x, shapes_image.rows),Scalar(0, 255, 0), 3, 8);
+    }
+    while (y < shapes_image.rows) {
+        y+= region_height;
+        line(shapes_image, Point(0, y), Point(shapes_image.cols, y), Scalar(0, 255, 0), 3, 8);
+    }
+
+}
+
+
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
@@ -307,7 +325,7 @@ int main(int argc, char* argv[]) {
             cerr << "Incorrect number of arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]" << i << argc;
         }
     }
-    
+
     const int height = 900;
     const int width = 1440;
 
@@ -350,6 +368,7 @@ int main(int argc, char* argv[]) {
             //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //display_point_on_screen(shape_screen, Point(50,50));
             display_shapes_on_screen(shape_screen, shapes, Point(50,50));
+            cluster_image(shape_screen, shapes_x, shapes_y, height, width);
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
         }
