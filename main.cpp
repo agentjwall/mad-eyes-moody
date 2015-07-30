@@ -4,7 +4,7 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include "string"
+#include <string>
 
 using namespace std;
 using namespace cv;
@@ -47,7 +47,7 @@ Point unscale_point(Point p, Rect origSize) {
     float ratio = (((float)kFastEyeWidth)/origSize.width);
     int x = round(p.x / ratio);
     int y = round(p.y / ratio);
-    return cv::Point(x,y);
+    return Point(x,y);
 }
 
 Mat matrix_magnitude(Mat mat_x, Mat mat_y) {
@@ -103,7 +103,8 @@ void possible_centers(int x, int y, const Mat &blurred, double gx, double gy, Ma
  * eye_region: dimensions of eye region
  * window_name: display window name
  */
-Point find_centers(Mat face_image, Rect eye_region, string window_name) {
+Point find_centers(Mat face_image, Rect eye_region) {
+
     Mat eye_unscaled = face_image(eye_region);
 
     // scale and grey image
@@ -159,6 +160,7 @@ Point find_centers(Mat face_image, Rect eye_region, string window_name) {
     Point max_point;
     double max_value;
     minMaxLoc(out, NULL, &max_value, NULL, &max_point);
+
     Point pupil = unscale_point(max_point, eye_region);
     return pupil;
 }
@@ -185,8 +187,8 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     Rect right_eye_region(right_eye_x, eye_top, eye_width, eye_height);
 
     // get points of pupils within eye region
-    Point left_pupil = find_centers(face_image, left_eye_region, "left eye");
-    Point right_pupil = find_centers(face_image, right_eye_region, "right eye");
+    Point left_pupil = find_centers(face_image, left_eye_region);
+    Point right_pupil = find_centers(face_image, right_eye_region);
 
     // convert points to fit on frame image
     right_pupil.x += right_eye_region.x;
@@ -337,7 +339,7 @@ int main(int argc, char* argv[]) {
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
         shape_screen.setTo(cv::Scalar(255,255,255));
 
-        face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        face_cascade.detectMultiScale(gray_image, faces, 1.8, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
