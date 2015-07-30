@@ -266,6 +266,7 @@ int main() {
     }
 
     namedWindow("window");
+//    namedWindow("shapes");
     Mat frame, shape_grey, shape_screen;
     shape_grey = Mat(height,width, CV_8UC1);
     cap >> frame;
@@ -326,6 +327,10 @@ int main() {
         //space for test
         if(wait_key == 32)
         {
+            calibration_done = true;
+        }
+
+        if (calibration_done) {
             double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
             double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
 
@@ -345,19 +350,19 @@ int main() {
             cout << "Y "<<EyeSettings.CenterPointOfEyes.y << endl;
 
             cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
-                 << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
+            << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
             //draw expected position
             circle(frame, Point(
-                    (frame.cols*(percentageWidth)),
-                    (frame.rows*(percentageHeight))),
+                           (frame.cols*(percentageWidth)),
+                           (frame.rows*(percentageHeight))),
                    5, Scalar(255, 255, 0), -1);
 
             Point pupilCenter = Point((right_pupil.x + left_pupil.x)/2, (right_pupil.y + left_pupil.y)/2);
             //draw pupil position
             circle(frame, Point(
-                    pupilCenter.x + faces[0].x,
-                    pupilCenter.y + faces[0].y),
-                    3, Scalar(255, 0, 0), -1);
+                           pupilCenter.x + faces[0].x,
+                           pupilCenter.y + faces[0].y),
+                   3, Scalar(255, 0, 0), -1);
             //draw pupil bounding box from config
             rectangle(frame,
                       Rect(
@@ -372,18 +377,11 @@ int main() {
             circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
 
             display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*(1-percentageWidth), frame.rows*(1-percentageHeight)));
-            //imshow("window", shape_screen);
-
-            //imwrite(("test/test"+std::to_string(count)+".png"), shape_screen);
-            imwrite(("test/testcolor"+std::to_string(count)+".png"), frame);
-            count++;
+            imshow("shape", shape_screen);
 
         }
 
-        //else
-        {
-            imshow("window", frame);
-        }
+        imshow("window", frame);
 
         cap >> frame;
     }
