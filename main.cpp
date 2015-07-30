@@ -10,7 +10,6 @@ using namespace cv;
 
 #define DEBUG 0
 
-bool calibration_done=false;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
@@ -285,13 +284,7 @@ void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess)
     circle(background, guess, 5, Scalar(0,0,0), -1);
 }
 
-void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_pupil, Point right_pupil, Rect left_eye, Rect right_eye) {
-    EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
-    EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
-
-    EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
-    EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
-
+void ListenForCalibrate(int wait_key) {
     //left calibration 97
     //right calibration 100
     //bottom calibration 115
@@ -299,19 +292,27 @@ void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_p
     switch (wait_key) {
         case 97:
             EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
             imwrite("test/calib-left.png", frame);
+            #endif
             break;
         case 100:
             EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
             imwrite("test/calib-right.png", frame);
+            #endif
             break;
         case 115:
             EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
             imwrite("test/calib-bot.png", frame);
+            #endif
             break;
         case 119:
             EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
             imwrite("test/calib-top.png", frame);
+            #endif
             break;
     }
 }
@@ -428,47 +429,13 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-<<<<<<< HEAD
         EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
         EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
 
         EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
         EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
 
-        //left calibration 97
-        //right calibration 100
-        //bottom calibration 115
-        //top calibration 119
-        switch (wait_key) {
-            case 97:
-                EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                #if DEBUG
-                imwrite("test/calib-left.png", frame);
-                #endif
-                break;
-            case 100:
-                EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                #if DEBUG
-                imwrite("test/calib-right.png", frame);
-                #endif
-                break;
-            case 115:
-                EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                #if DEBUG
-                imwrite("test/calib-bot.png", frame);
-                #endif
-                break;
-            case 119:
-                EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                #if DEBUG
-                imwrite("test/calib-top.png", frame);
-                #endif
-                break;
-=======
-        if(doCalibrate) {
-            calibrate(EyeSettings, frame, wait_key, left_pupil, right_pupil, left_eye, right_eye);
->>>>>>> origin/master
-        }
+        ListenForCalibrate(wait_key);
 
         //space for test
         if(wait_key == 32)
