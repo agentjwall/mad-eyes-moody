@@ -270,31 +270,11 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
-
-    //display calibration points
-    if(EyeSettings.eyeTopMax) {
-        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 255,0), -1);
-    }else{
-        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 0, 255), -1);
-    }
-    if(EyeSettings.eyeRightMax) {
-        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
-    }else{
-        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
-    }
-    if(EyeSettings.eyeBottomMax) {
-        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 255,0), -1);
-    }else{
-        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 0,255), -1);
-    }
-    if(EyeSettings.eyeLeftMax) {
-        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
-    }else{
-        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
-    }
 }
 
-void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess) {
+void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess, bool showGuess) {
+    background.setTo(cv::Scalar(255,255,255));
+
     int best_dist = -1;
     Point best_point;
 
@@ -315,7 +295,34 @@ void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess)
             circle(background, s, 20, Scalar(0,0,0), 2);
         }
     }
-    circle(background, guess, 5, Scalar(0,0,0), -1);
+    if(showGuess) {
+        circle(background, guess, 5, Scalar(0, 0, 0), -1);
+    }else{
+        circle(background, guess, 5, Scalar(0, 0, 255), -1);
+    }
+
+
+    //display calibration points
+    if(EyeSettings.eyeTopMax) {
+        circle(background, Point(background.cols / 2, 0), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(background, Point(background.cols / 2, 0), 5, Scalar(0, 0, 255), -1);
+    }
+    if(EyeSettings.eyeRightMax) {
+        circle(background, Point(background.cols, background.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(background, Point(background.cols, background.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeBottomMax) {
+        circle(background, Point(background.cols / 2, background.rows), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(background, Point(background.cols / 2, background.rows), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeLeftMax) {
+        circle(background, Point(0, background.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(background, Point(0, background.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
 }
 
 void ListenForCalibrate(int wait_key) {
@@ -479,7 +486,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-    const int height = 900;
+    const int height = 800;
     const int width = 1440;
 
     //define font
@@ -498,12 +505,11 @@ int main(int argc, char* argv[]) {
     }
 
     namedWindow("window");
-    Mat frame, shape_grey, shape_screen;
-    shape_grey = Mat(height,width, CV_8UC1);
+    Mat frame, shape_screen;
+    shape_screen = Mat(height,width, CV_8UC3);
     cap >> frame;
-    vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
-    cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
-    shape_screen.setTo(cv::Scalar(255,255,255));
+
+    vector<Point> shapes{Point(100,100), Point(700,500), Point(1100,200)};
     vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
     random_shuffle(region_centers.begin(), region_centers.end());
 
@@ -611,7 +617,7 @@ int main(int argc, char* argv[]) {
             EyeSettings.count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)), faces.size()>0);
             imshow("window", shape_screen);
             #endif
 
@@ -634,10 +640,13 @@ int main(int argc, char* argv[]) {
             }
             #endif
         }
-        //imshow("window", frame);
 
-        if(doCalibrate) {
+        if(doCalibrate && DEBUG) {
             imshow("window", frame);
+        }
+        if(doCalibrate && !DEBUG){
+            display_shapes_on_screen(shape_screen, shapes, Point(), false);
+            imshow("window", shape_screen);
         }
 
         cap >> frame;
