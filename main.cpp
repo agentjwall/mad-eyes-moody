@@ -428,6 +428,7 @@ int main(int argc, char* argv[]) {
             break;
         }
 
+<<<<<<< HEAD
         EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
         EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
 
@@ -463,6 +464,10 @@ int main(int argc, char* argv[]) {
                 imwrite("test/calib-top.png", frame);
                 #endif
                 break;
+=======
+        if(doCalibrate) {
+            calibrate(EyeSettings, frame, wait_key, left_pupil, right_pupil, left_eye, right_eye);
+>>>>>>> origin/master
         }
 
         //space for test
