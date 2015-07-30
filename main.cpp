@@ -272,7 +272,7 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
 }
 
-void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess, bool showGuess) {
+void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess, unsigned char showGuess) {
     background.setTo(cv::Scalar(255,255,255));
 
     int best_dist = -1;
@@ -295,10 +295,10 @@ void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess,
             circle(background, s, 20, Scalar(0,0,0), 2);
         }
     }
-    if(showGuess) {
-        circle(background, guess, 5, Scalar(0, 0, 0), -1);
-    }else{
+    if(showGuess==1) {
         circle(background, guess, 5, Scalar(0, 0, 255), -1);
+    }else if(showGuess==2){
+        circle(background, guess, 5, Scalar(0, 0, 0), -1);
     }
 
 
@@ -325,7 +325,7 @@ void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess,
     }
 }
 
-void ListenForCalibrate(int wait_key) {
+void ListenForCalibrate(int wait_key, Mat frame) {
     //left calibration 97
     //right calibration 100
     //bottom calibration 115
@@ -526,7 +526,7 @@ int main(int argc, char* argv[]) {
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
 
-        face_cascade.detectMultiScale(gray_image, faces, 1.7, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
@@ -547,7 +547,7 @@ int main(int argc, char* argv[]) {
         EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
         EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
 
-        ListenForCalibrate(wait_key);
+        ListenForCalibrate(wait_key, frame);
 
         //space for test
         if(wait_key == 32)
@@ -613,11 +613,11 @@ int main(int argc, char* argv[]) {
             circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
 
             //imwrite(("test/test"+std::to_string(EyeSettings.count)+".png"), shape_screen);
-            imwrite(("test/testcolor"+std::to_string(EyeSettings.count)+".png"), frame);
+            //imwrite(("test/testcolor"+std::to_string(EyeSettings.count)+".png"), frame);
             EyeSettings.count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)), faces.size()>0);
+            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)), (faces.size()>0?2:1));
             imshow("window", shape_screen);
             #endif
 
@@ -645,7 +645,7 @@ int main(int argc, char* argv[]) {
             imshow("window", frame);
         }
         if(doCalibrate && !DEBUG){
-            display_shapes_on_screen(shape_screen, shapes, Point(), false);
+            display_shapes_on_screen(shape_screen, shapes, Point(), 0);
             imshow("window", shape_screen);
         }
 
