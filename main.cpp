@@ -4,7 +4,6 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include <string>
 
 using namespace std;
 using namespace cv;
