@@ -3,13 +3,12 @@
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
-#include <cmath>
 
 using namespace std;
 using namespace cv;
 
-bool calibration_done = false;
-Rect screen;
+#define DEBUG 1
+
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
@@ -342,11 +341,10 @@ int main() {
                 percentageHeight = 1;
             }
 
-            cout << "Y "<<EyeSettings.CenterPointOfEyes.y << endl;
-
+            #if DEBUG
             cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
                  << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
-            //draw expected position
+            //draw expected position on screen from pupils
             circle(frame, Point(
                     (frame.cols*(percentageWidth)),
                     (frame.rows*(percentageHeight))),
@@ -370,20 +368,16 @@ int main() {
             Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
                                         EyeSettings.CenterPointOfEyes.y + faces[0].y);
             circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
-
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*(1-percentageWidth), frame.rows*(1-percentageHeight)));
-            //imshow("window", shape_screen);
-
             //imwrite(("test/test"+std::to_string(count)+".png"), shape_screen);
             imwrite(("test/testcolor"+std::to_string(count)+".png"), frame);
             count++;
-
+            #else
+            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*percentageHeight));
+            imshow("window", shape_screen);
+            #endif
         }
 
-        //else
-        {
-            imshow("window", frame);
-        }
+        imshow("window", frame);
 
         cap >> frame;
     }
