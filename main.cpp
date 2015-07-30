@@ -342,7 +342,7 @@ int main() {
         }
 
         if (calibration_done) {
-            double percentageWidth = center.x / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
+            double percentageWidth = (center.x - min(EyeSettings.eyeLeftMax, EyeSettings.eyeRightMax)) / (double)abs(EyeSettings.eyeLeftMax - EyeSettings.eyeRightMax);
             if(percentageWidth < 0){
                 percentageWidth = 0;
             }else if(percentageWidth > 1){
@@ -354,15 +354,16 @@ int main() {
             }else if(percentageHeight > 1){
                 percentageHeight = 1;
             }
+            cout << "leftMax: " << EyeSettings.eyeLeftMax << " center: " << center.x << "rightMax: " << EyeSettings.eyeRightMax << endl;
             cout << "percentage width: " << percentageWidth << endl;
-//            cout << "percentage height: " << percentageHeight << endl;
 
             //convert percentage to larger frame
-            Point looking(width * percentageWidth, height * percentageHeight);
+//            Point looking(width * percentageWidth, height * percentageHeight);
+            line(frame, Point(width * percentageWidth, 0), Point(width * percentageWidth, height), Scalar(0, 255, 0), 3, 8);
 
 //            cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
 //                 << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
-            circle(frame, looking, 3, Scalar(0, 255, 0));
+//            circle(frame, looking, 3, Scalar(0, 255, 0));
 //            circle(frame, Point(
 //                            frame.cols*(1-percentageWidth),
 //                            frame.rows*(1-percentageHeight)),
