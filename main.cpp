@@ -4,6 +4,7 @@
 #include <fstream>
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
+#include <stdlib.h>
 #include "string"
 
 using namespace std;
@@ -11,6 +12,7 @@ using namespace cv;
 
 bool calibration_done = false;
 Rect screen;
+int duration = 15;
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
@@ -265,20 +267,13 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
 }
 
 
-void cluster_image(Mat shapes_image, int x_regions, int y_regions) {
-    // draw regions
-    int region_width = shapes_image.cols / x_regions;
-    int region_height = shapes_image.rows / y_regions;
-    int x = 0, y = 0;
-
-    while (x < shapes_image.cols) {
-        x += region_width;
-        line(shapes_image, Point(x, 0), Point(x, shapes_image.rows),Scalar(0, 255, 0), 3, 8);
-    }
-    while (y < shapes_image.rows) {
-        y+= region_height;
-        line(shapes_image, Point(0, y), Point(shapes_image.cols, y), Scalar(0, 255, 0), 3, 8);
-    }
+void cluster_image(Mat shapes_image, vector<Point> region_centers) {
+    // clear original image
+    shapes_image.setTo(cv::Scalar(255,255,255));
+    //choose random region
+    int region = rand() % region_centers.size();
+    Point point = region_centers[region];
+    circle(shapes_image, point, 20, Scalar(0,255,0), -1);
 }
 
 vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_regions) {
@@ -372,8 +367,10 @@ int main(int argc, char* argv[]) {
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
     shape_screen.setTo(cv::Scalar(255,255,255));
     vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
+    cluster_image(shape_screen, region_centers);
 
     int count = 0;
+    int timer = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
@@ -383,12 +380,12 @@ int main(int argc, char* argv[]) {
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
-        display_shapes_on_screen(shape_screen, region_centers, Point(50,50));
+//        display_shapes_on_screen(shape_screen, region_centers, Point(50,50));
         if (faces.size() > 0) {
             find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
             //display_point_on_screen(shape_screen, Point(50,50));
-            display_shapes_on_screen(shape_screen, region_centers, Point(50,50));
+//            display_shapes_on_screen(shape_screen, region_centers, Point(50,50));
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
         }
@@ -467,6 +464,11 @@ int main(int argc, char* argv[]) {
         }
 
         //imshow("window", frame);
+        if(timer == duration) {
+            cluster_image(shape_screen, region_centers);
+            timer = 0;
+        }
+        timer++;
         imshow("window", shape_screen);
 
         cap >> frame;
