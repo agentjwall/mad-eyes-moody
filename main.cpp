@@ -338,9 +338,8 @@ void ListenForCalibrate(int wait_key) {
 void cluster_image(Mat shapes_image, vector<Point> region_centers, Point &point_dst) {
     // clear original image
     shapes_image.setTo(cv::Scalar(255,255,255));
-    //choose random region
+
     static int index = 0;
-//    int region = rand() % region_centers.size();
     Point point = region_centers[index];
     circle(shapes_image, point, 20, Scalar(0,255,0), -1);
     point_dst = point;
@@ -458,7 +457,6 @@ int main(int argc, char* argv[]) {
     Mat frame, shape_grey, shape_screen;
     shape_grey = Mat(height,width, CV_8UC1);
     cap >> frame;
-    vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
     shape_screen.setTo(cv::Scalar(255,255,255));
     vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
@@ -477,7 +475,7 @@ int main(int argc, char* argv[]) {
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
 
-        face_cascade.detectMultiScale(gray_image, faces, 1.7, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
@@ -556,7 +554,7 @@ int main(int argc, char* argv[]) {
             EyeSettings.count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+            display_shapes_on_screen(shape_screen, region_centers, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
             imshow("window", shape_screen);
             #endif
 
