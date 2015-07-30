@@ -8,7 +8,12 @@
 using namespace std;
 using namespace cv;
 
+
 #define DEBUG 0
+#define CLUSTERING 0
+
+Rect screen;
+int duration = 20;
 
 typedef struct {
     Point CenterPointOfEyes;
@@ -208,7 +213,7 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     right_eye_region_dst = right_eye_region;
 }
 
-void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region) {
+void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region, int record = 0, bool doCalibration = false) {
     Mat face_image = color_image(face);
 
     // draw eye regions
@@ -240,6 +245,12 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     String text1 = "Pupil(L,R): ([" + xleft_pupil_string + "," + yleft_pupil_string + "],[" + xright_pupil_string + "," + yright_pupil_string + "])";
     String text2 = "Center(L,R): ([" + left_eye_region_width + ", " + left_eye_region_height +"]," + "[" + right_eye_region_width + ", " + right_eye_region_height +"])";
 
+    if (doCalibration && record) {
+        cout << xleft_pupil_string << "," << yleft_pupil_string << ";"
+             << xright_pupil_string << "," << yright_pupil_string << ";"
+             << left_eye_region_width << "," << left_eye_region_height << ";"
+             << right_eye_region_width << "," << right_eye_region_height << ";";
+    }
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
@@ -324,6 +335,43 @@ void ListenForCalibrate(int wait_key) {
     }
 }
 
+void cluster_image(Mat shapes_image, vector<Point> region_centers, Point &point_dst) {
+    // clear original image
+    shapes_image.setTo(cv::Scalar(255,255,255));
+    //choose random region
+    static int index = 0;
+//    int region = rand() % region_centers.size();
+    Point point = region_centers[index];
+    circle(shapes_image, point, 20, Scalar(0,255,0), -1);
+    point_dst = point;
+    index++;
+    if (index == region_centers.size())  {
+        index = 0;
+    }
+}
+
+vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_regions) {
+    vector<Point> regions_centers;
+    int region_width = shapes_image.cols / x_regions;
+    int region_height = shapes_image.rows / y_regions;
+    int start_center_x = region_width/2;
+    int start_center_y = region_height/2;
+    int curr_x = 0, curr_y = 0;
+
+    for (int x = 0; x < x_regions; x++) {
+        curr_x = start_center_x + ((x) * region_width);
+
+        for(int y = 0; y < y_regions; y++) {
+            curr_y = start_center_y + ((y) * region_height);
+            Point center(curr_x, curr_y);
+            regions_centers.push_back(center);
+            cout << "center: " << center << endl;
+        }
+    }
+    return regions_centers;
+}
+
+
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
@@ -378,7 +426,6 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
     }
-
     if (showCam + doTrain + doTest > 1) {
         cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
         exit(1);
@@ -387,7 +434,6 @@ int main(int argc, char* argv[]) {
     if ((doImport || doExport) && !hasFile) {
         cerr << "You must define a file! -f <FILENAME>";
     }
-
 
 
     const int height = 900;
@@ -414,12 +460,22 @@ int main(int argc, char* argv[]) {
     cap >> frame;
     vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
+    shape_screen.setTo(cv::Scalar(255,255,255));
+    vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
+    random_shuffle(region_centers.begin(), region_centers.end());
 
+    #if CLUSTERING
+    Point displaying;
+    cluster_image(shape_screen, region_centers, displaying);
+    #endif
+
+    int count = 0;
+    int timer = 0;
+    int record = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
-        shape_screen.setTo(cv::Scalar(255,255,255));
 
         face_cascade.detectMultiScale(gray_image, faces, 1.7, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
@@ -503,7 +559,27 @@ int main(int argc, char* argv[]) {
             display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
             imshow("window", shape_screen);
             #endif
+
+            #if CLUSTERING
+            if(timer == duration) {
+                cluster_image(shape_screen, region_centers, displaying);
+                timer = 0;
+                record = 0;
+            }
+            timer++;
+            imshow("window", shape_screen);
+
+            //looking at new point, start recording data 'z'
+            if (wait_key == 122) {
+                record = 1;
+            }
+            if (record) {
+                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye, record, !doCalibrate);
+                cout << displaying.x << "," << displaying.y << ";" << endl;
+            }
+            #endif
         }
+        //imshow("window", frame);
 
         if(doCalibrate) {
             imshow("window", frame);
