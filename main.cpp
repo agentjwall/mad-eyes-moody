@@ -10,11 +10,10 @@ using namespace cv;
 
 
 #define DEBUG 0
-#define CLUSTERING 1
+#define CLUSTERING 0
 
 Rect screen;
 int duration = 20;
-//bool calibration_done=false;
 
 typedef struct {
     Point CenterPointOfEyes;
@@ -534,8 +533,8 @@ int main(int argc, char* argv[]) {
             EyeSettings.count++;
             imshow("window", frame);
             #else
-//            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
-//            imshow("window", shape_screen);
+            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+            imshow("window", shape_screen);
             #endif
 
             #if CLUSTERING
