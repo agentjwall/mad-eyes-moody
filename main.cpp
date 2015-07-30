@@ -308,8 +308,6 @@ int main(int argc, char* argv[]) {
         }
     }
     
-
-    exit(0);
     const int height = 900;
     const int width = 1440;
 
