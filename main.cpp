@@ -31,12 +31,6 @@ vector<string> &split(const string &s, char delim, vector<string> &elems) {
     return elems;
 }
 
-vector<string> split(const string &s, char delim) {
-    vector<string> elems;
-    split(s, delim, elems);
-    return elems;
-}
-
 void scale(const Mat &src,Mat &dst) {
     cv::resize(src, dst, cv::Size(kFastEyeWidth,(((float)kFastEyeWidth)/src.cols) * src.rows));
 }
