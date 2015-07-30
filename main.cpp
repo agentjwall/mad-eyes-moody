@@ -78,6 +78,26 @@ void possible_centers(int x, int y, const Mat &blurred, double gx, double gy, Ma
 }
 
 /*
+ * Imitate Matlab gradiant function, to better match results from paper
+ */
+Mat computeMatXGradient(const Mat &mat) {
+    Mat out(mat.rows,mat.cols,CV_64F);
+
+    for (int y = 0; y < mat.rows; ++y) {
+        const uchar *Mr = mat.ptr<uchar>(y);
+        double *Or = out.ptr<double>(y);
+
+        Or[0] = Mr[1] - Mr[0];
+        for (int x = 1; x < mat.cols - 1; ++x) {
+            Or[x] = (Mr[x+1] - Mr[x-1])/2.0;
+        }
+        Or[mat.cols-1] = Mr[mat.cols-1] - Mr[mat.cols-2];
+    }
+
+    return out;
+}
+
+/*
  * Finds the pupils within the given eye region
  * returns points of where pupil is calculated to be
  *
@@ -96,9 +116,12 @@ Point find_centers(Mat face_image, Rect eye_region) {
 
     // get the gradient of eye regions
     Mat gradient_x, gradient_y;
-    Sobel(eye_scaled_gray, gradient_x, CV_64F, 1, 0, 5);
-    Sobel(eye_scaled_gray, gradient_y, CV_64F, 0, 1, 5);
-    Mat magnitude = matrix_magnitude(gradient_x, gradient_y);
+    gradient_x = computeMatXGradient(eye_scaled_gray);
+    //Sobel(eye_scaled_gray, gradient_x, CV_64F, 1, 0, 5);
+    gradient_y = computeMatXGradient(eye_scaled_gray.t()).t();
+    //Sobel(eye_scaled_gray, gradient_y, CV_64F, 0, 1, 5);
+
+    //Mat magnitude = matrix_magnitude(gradient_x, gradient_y);
 
     // normalized displacement vectors
     normalize(gradient_x, gradient_x);
