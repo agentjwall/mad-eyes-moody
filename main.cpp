@@ -11,10 +11,9 @@ using namespace cv;
 
 
 #define DEBUG 0
-#define CLUSTERING 0
+#define CLUSTERING 1
 
 Rect screen;
-int duration = 20;
 
 typedef struct {
     Point CenterPointOfEyes;
@@ -272,9 +271,7 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
 }
 
-void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess, unsigned char showGuess) {
-    background.setTo(cv::Scalar(255,255,255));
-
+Point closestPoint(vector<Point> shapes, Point guess){
     int best_dist = -1;
     Point best_point;
 
@@ -285,6 +282,13 @@ void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess,
             best_point = s;
         }
     }
+    return best_point;
+}
+
+void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess, unsigned char showGuess) {
+    background.setTo(cv::Scalar(255,255,255));
+
+    Point best_point = closestPoint(shapes, guess);
 
     for (Point s : shapes) {
         if (s == best_point) {
@@ -388,7 +392,7 @@ vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_region
             curr_y = start_center_y + ((y) * region_height);
             Point center(curr_x, curr_y);
             regions_centers.push_back(center);
-            cout << "center: " << center << endl;
+            //cout << "center: " << center << endl;
         }
     }
     return regions_centers;
@@ -509,18 +513,12 @@ int main(int argc, char* argv[]) {
     shape_screen = Mat(height,width, CV_8UC3);
     cap >> frame;
 
-    vector<Point> shapes{Point(100,100), Point(700,500), Point(1100,200)};
     vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
-    random_shuffle(region_centers.begin(), region_centers.end());
-
-    #if CLUSTERING
-    Point displaying;
-    cluster_image(shape_screen, region_centers, displaying);
-    #endif
+    //random_shuffle(region_centers.begin(), region_centers.end());
 
     int count = 0;
-    int timer = 0;
     int record = 0;
+    int currentShape=-1;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
@@ -617,26 +615,26 @@ int main(int argc, char* argv[]) {
             EyeSettings.count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)), (faces.size()>0?2:1));
+            display_shapes_on_screen(shape_screen, region_centers, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)), (faces.size()>0?2:1));
             imshow("window", shape_screen);
             #endif
 
             #if CLUSTERING
-            if(timer == duration) {
-                cluster_image(shape_screen, region_centers, displaying);
-                timer = 0;
-                record = 0;
-            }
-            timer++;
-            imshow("window", shape_screen);
-
             //looking at new point, start recording data 'z'
-            if (wait_key == 122) {
-                record = 1;
+            if (wait_key == 122 && currentShape<(int)region_centers.size()) {
+                record=1;
+                currentShape++;
+                cout << "Record data for grid area " << currentShape << endl;
             }
-            if (record) {
-                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye, record, !doCalibrate);
-                cout << displaying.x << "," << displaying.y << ";" << endl;
+            if(record < 20 && record > 0){
+                //actual sphere looking at, sphere it thinks we're looking at, exact screen point thinks looking at
+                cout << region_centers[currentShape] << ","
+                << closestPoint(region_centers, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight))) << ","
+                <<  Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)) << endl;
+                circle(shape_screen, region_centers[currentShape], 4, Scalar(0,0,0), -1);
+                imshow("window", shape_screen);
+
+                record++;
             }
             #endif
         }
@@ -645,7 +643,7 @@ int main(int argc, char* argv[]) {
             imshow("window", frame);
         }
         if(doCalibrate && !DEBUG){
-            display_shapes_on_screen(shape_screen, shapes, Point(), 0);
+            display_shapes_on_screen(shape_screen, region_centers, Point(), 0);
             imshow("window", shape_screen);
         }
 
