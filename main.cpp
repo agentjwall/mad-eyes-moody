@@ -12,7 +12,7 @@ bool calibration_done = false;
 Rect screen;
 typedef struct {
     Point CenterPointOfEyes;
-    Point OffsetFromEyeCenter;
+//    Point OffsetFromEyeCenter;
     int eyeLeftMax;
     int eyeRightMax;
     int eyeTopMax;
@@ -152,7 +152,7 @@ Point find_centers(Mat face_image, Rect eye_region, string window_name) {
  * color_image: image of the whole frame
  * face: dimensions of face in color_image
  */
-void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_pupil_dst, Rect &left_eye_region_dst, Rect &right_eye_region_dst) {
+void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_pupil_dst, Point &center_dst, Rect &left_eye_region_dst, Rect &right_eye_region_dst) {
     // image of face
     Mat face_image = color_image(face);
 
@@ -176,29 +176,30 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     left_pupil.x += left_eye_region.x;
     left_pupil.y += left_eye_region.y;
 
+    //find eye center
+    Point center;
+    center.x = (right_pupil.x - left_pupil.x)/2 + left_pupil.x;
+    center.y = (right_pupil.y + left_pupil.y)/2;
+
 
     left_pupil_dst = left_pupil;
     right_pupil_dst = right_pupil;
+    center_dst = center;
     left_eye_region_dst = left_eye_region;
     right_eye_region_dst = right_eye_region;
 }
 
-void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region) {
+void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Point center, Rect left_eye_region, Rect right_eye_region) {
     Mat face_image = color_image(face);
 
     // draw eye regions
     rectangle(face_image, left_eye_region, Scalar(0, 0, 255));
     rectangle(face_image, right_eye_region, Scalar(0, 0, 255));
 
-    //find eye center
-    Point center;
-    center.x = (right_pupil.x - left_pupil.x)/2 + left_pupil.x;
-    center.y = (right_pupil.y + left_pupil.y)/2;
-
     // draw pupils
     circle(face_image, right_pupil, 3, Scalar(0, 255, 0));
     circle(face_image, left_pupil, 3, Scalar(0, 255, 0));
-    //circle(face_image, center, 3, Scalar(255, 0, 0));
+    circle(face_image, center, 3, Scalar(255, 0, 0));
 
     std::string left_eye_region_width = std::to_string(left_eye_region.x + (left_eye_region.width/2));
     std::string left_eye_region_height = std::to_string(left_eye_region.y + (left_eye_region.height/2));
@@ -251,8 +252,6 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
 
 
 int main() {
-    const int height = 1800;
-    const int width = 1440;
 
     //define font
     CvFont font;
@@ -268,6 +267,8 @@ int main() {
     if (!cap.isOpened()) {
         return -1;
     }
+    const int height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+    const int width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
 
     namedWindow("window");
     Mat frame, shape_grey, shape_screen;
@@ -285,14 +286,14 @@ int main() {
 
         face_cascade.detectMultiScale(gray_image, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
-        Point left_pupil, right_pupil;
+        Point left_pupil, right_pupil, center;
         Rect left_eye, right_eye;
         display_shapes_on_screen(shape_screen, shapes, Point(50,50));
         if (faces.size() > 0) {
-            find_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
-            //display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
+            find_eyes(frame, faces[0], left_pupil, right_pupil, center, left_eye, right_eye);
+            display_eyes(frame, faces[0], left_pupil, right_pupil, center, left_eye, right_eye);
             //display_point_on_screen(shape_screen, Point(50,50));
-            display_shapes_on_screen(shape_screen, shapes, Point(50,50));
+//            display_shapes_on_screen(shape_screen, shapes, Point(50,50));
             //cout << "Center:" << "(" << faces[0].width/2 << "," << faces[0].height/2 << ")" << "    " << "Rectangle:" << faces[0] << "    " << "Left pupil:" << left_pupil << "   " << "Right pupil:" << right_pupil;
             //cout << "\n";
         }
@@ -303,11 +304,9 @@ int main() {
             break;
         }
 
-        EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
-        EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
 
-        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
-        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
+//        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
+//        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
 
         //left calibration 97
         //right calibration 100
@@ -315,63 +314,67 @@ int main() {
         //top calibration 119
         switch (wait_key) {
             case 97:
-                EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("test/calib-left.png", frame);
+                EyeSettings.eyeLeftMax = center.x;
+                imwrite("left-side.png", frame);
+                cout << "Left: " << center << endl;
                 break;
             case 100:
-                EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
-                imwrite("test/calib-right.png", frame);
+                EyeSettings.eyeRightMax = center.x;
+                imwrite("right-side.png", frame);
+                cout << "Right: " << center << endl;
                 break;
             case 115:
-                EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("test/calib-bot.png", frame);
+                EyeSettings.eyeBottomMax = center.y;
+                imwrite("bottom-side.png", frame);
+                cout << "Bottom: " << center << endl;
                 break;
             case 119:
-                EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
-                imwrite("test/calib-top.png", frame);
+                EyeSettings.eyeTopMax = center.y;
+                imwrite("top-side.png", frame);
+                cout << "top: " << center << endl;
                 break;
         }
 
         Point drawEyeCenter = Point(EyeSettings.CenterPointOfEyes.x + faces[0].x,
                                     EyeSettings.CenterPointOfEyes.y + faces[0].y);
-        circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
+//        circle(frame, drawEyeCenter, 3, Scalar(0, 0, 255));
 
         //space for test
-        if(wait_key == 32)
-        {
-            double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
-            double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
+//        if(wait_key == 32)
+//        {
+//            double pupilOffsetfromLeft = EyeSettings.OffsetFromEyeCenter.x+EyeSettings.eyeLeftMax;
+//            double pupilOffsetfromBottom = EyeSettings.OffsetFromEyeCenter.y+EyeSettings.eyeBottomMax;
+//
+//            double percentageWidth = pupilOffsetfromLeft / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
+//            if(percentageWidth < 0){
+//                percentageWidth = 0;
+//            }else if(percentageWidth > 1){
+//                percentageWidth = 1;
+//            }
+//            double percentageHeight = pupilOffsetfromBottom / (double)(EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax);
+//            if(percentageHeight < 0){
+//                percentageHeight = 0;
+//            }else if(percentageHeight > 1){
+//                percentageHeight = 1;
+//            }
+//
+//            cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
+//                 << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
+////            circle(frame, Point(
+////                           (right_pupil.x + left_pupil.x)/2+faces[0].x,
+////                           (right_pupil.y + left_pupil.y)/2+faces[0].y),
+////                   3, Scalar(0, 255, 0));
+////            circle(frame, Point(
+////                            frame.cols*(1-percentageWidth),
+////                            frame.rows*(1-percentageHeight)),
+////                   3, Scalar(255, 255, 0));
+//
+//            imwrite(("test/test"+std::to_string(count)+".png"), frame);
+//            count++;
+//        }
 
-            double percentageWidth = pupilOffsetfromLeft / (double)(EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax);
-            if(percentageWidth < 0){
-                percentageWidth = 0;
-            }else if(percentageWidth > 1){
-                percentageWidth = 1;
-            }
-            double percentageHeight = pupilOffsetfromBottom / (double)(EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax);
-            if(percentageHeight < 0){
-                percentageHeight = 0;
-            }else if(percentageHeight > 1){
-                percentageHeight = 1;
-            }
-
-            cout << "xmax: " << (EyeSettings.eyeLeftMax + EyeSettings.eyeRightMax) << " cur: " << pupilOffsetfromLeft << " = "<< percentageWidth << " , "
-                 << "ymax: " << (EyeSettings.eyeTopMax + EyeSettings.eyeBottomMax) << " cur: " << pupilOffsetfromBottom << " = "<< percentageHeight << endl;
-            circle(frame, Point(
-                           (right_pupil.x + left_pupil.x)/2+faces[0].x,
-                           (right_pupil.y + left_pupil.y)/2+faces[0].y),
-                   3, Scalar(0, 255, 0));
-            circle(frame, Point(
-                            frame.cols*(1-percentageWidth),
-                            frame.rows*(1-percentageHeight)),
-                   3, Scalar(255, 255, 0));
-
-            imwrite(("test/test"+std::to_string(count)+".png"), frame);
-            count++;
-        }
-
-        //imshow("window", frame);
-        imshow("window", shape_screen);
+        imshow("window", frame);
+//        imshow("window", shape_screen);
 
         cap >> frame;
     }
