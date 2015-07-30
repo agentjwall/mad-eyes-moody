@@ -6,23 +6,25 @@
 #include "constants.h"
 #include <sys/stat.h>
 
-
 using namespace std;
 using namespace cv;
 
-#define DEBUG 0
 
-bool calibration_done=false;
+#define DEBUG 0
+#define CLUSTERING 0
+
+Rect screen;
+int duration = 20;
+
 typedef struct {
     Point CenterPointOfEyes;
     Point OffsetFromEyeCenter;
-    int eyeLeftMax=13;
-    int eyeRightMax=13;
-    int eyeTopMax=11;
-    int eyeBottomMax=11;
+    int eyeLeftMax=0;//13;
+    int eyeRightMax=0;//13;
+    int eyeTopMax=0;//11;
+    int eyeBottomMax=0;//11;
     int count = 0;
 } EyeSettingsSt;
-
 EyeSettingsSt EyeSettings;
 
 vector<string> &split(const string &s, char delim, vector<string> &elems) {
@@ -97,6 +99,26 @@ void possible_centers(int x, int y, const Mat &blurred, double gx, double gy, Ma
 }
 
 /*
+ * Imitate Matlab gradiant function, to better match results from paper
+ */
+Mat computeMatXGradient(const Mat &mat) {
+    Mat out(mat.rows,mat.cols,CV_64F);
+
+    for (int y = 0; y < mat.rows; ++y) {
+        const uchar *Mr = mat.ptr<uchar>(y);
+        double *Or = out.ptr<double>(y);
+
+        Or[0] = Mr[1] - Mr[0];
+        for (int x = 1; x < mat.cols - 1; ++x) {
+            Or[x] = (Mr[x+1] - Mr[x-1])/2.0;
+        }
+        Or[mat.cols-1] = Mr[mat.cols-1] - Mr[mat.cols-2];
+    }
+
+    return out;
+}
+
+/*
  * Finds the pupils within the given eye region
  * returns points of where pupil is calculated to be
  *
@@ -115,9 +137,12 @@ Point find_centers(Mat face_image, Rect eye_region) {
 
     // get the gradient of eye regions
     Mat gradient_x, gradient_y;
-    Sobel(eye_scaled_gray, gradient_x, CV_64F, 1, 0, 5);
-    Sobel(eye_scaled_gray, gradient_y, CV_64F, 0, 1, 5);
-    Mat magnitude = matrix_magnitude(gradient_x, gradient_y);
+    gradient_x = computeMatXGradient(eye_scaled_gray);
+    //Sobel(eye_scaled_gray, gradient_x, CV_64F, 1, 0, 5);
+    gradient_y = computeMatXGradient(eye_scaled_gray.t()).t();
+    //Sobel(eye_scaled_gray, gradient_y, CV_64F, 0, 1, 5);
+
+    //Mat magnitude = matrix_magnitude(gradient_x, gradient_y);
 
     // normalized displacement vectors
     normalize(gradient_x, gradient_x);
@@ -204,7 +229,7 @@ void find_eyes(Mat color_image, Rect face, Point &left_pupil_dst, Point &right_p
     right_eye_region_dst = right_eye_region;
 }
 
-void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region) {
+void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region, int record = 0, bool doCalibration = false) {
     Mat face_image = color_image(face);
 
     // draw eye regions
@@ -236,12 +261,40 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     String text1 = "Pupil(L,R): ([" + xleft_pupil_string + "," + yleft_pupil_string + "],[" + xright_pupil_string + "," + yright_pupil_string + "])";
     String text2 = "Center(L,R): ([" + left_eye_region_width + ", " + left_eye_region_height +"]," + "[" + right_eye_region_width + ", " + right_eye_region_height +"])";
 
+    if (doCalibration && record) {
+        cout << xleft_pupil_string << "," << yleft_pupil_string << ";"
+             << xright_pupil_string << "," << yright_pupil_string << ";"
+             << left_eye_region_width << "," << left_eye_region_height << ";"
+             << right_eye_region_width << "," << right_eye_region_height << ";";
+    }
 
     //add data
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
+
+    //display calibration points
+    if(EyeSettings.eyeTopMax) {
+        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols / 2, 0), 5, Scalar(0, 0, 255), -1);
+    }
+    if(EyeSettings.eyeRightMax) {
+        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeBottomMax) {
+        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(color_image.cols / 2, color_image.rows), 5, Scalar(0, 0,255), -1);
+    }
+    if(EyeSettings.eyeLeftMax) {
+        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 255,0), -1);
+    }else{
+        circle(color_image, Point(0, color_image.rows / 2), 5, Scalar(0, 0,255), -1);
+    }
 }
 
-void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess) {
+void display_shapes_on_screen(Mat background, vector<Point> shapes, Point guess) {
     int best_dist = -1;
     Point best_point;
 
@@ -265,13 +318,7 @@ void display_shapes_on_screen(Mat &background, vector<Point> shapes, Point guess
     circle(background, guess, 5, Scalar(0,0,0), -1);
 }
 
-void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_pupil, Point right_pupil, Rect left_eye, Rect right_eye) {
-    EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
-    EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
-
-    EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
-    EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
-
+void ListenForCalibrate(int wait_key) {
     //left calibration 97
     //right calibration 100
     //bottom calibration 115
@@ -279,27 +326,72 @@ void calibrate(EyeSettingsSt &EyeSettings, Mat frame, int wait_key, Point left_p
     switch (wait_key) {
         case 97:
             EyeSettings.eyeLeftMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
             imwrite("test/calib-left.png", frame);
+            #endif
             break;
         case 100:
             EyeSettings.eyeRightMax = abs(EyeSettings.OffsetFromEyeCenter.x);
+            #if DEBUG
             imwrite("test/calib-right.png", frame);
+            #endif
             break;
         case 115:
             EyeSettings.eyeBottomMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
             imwrite("test/calib-bot.png", frame);
+            #endif
             break;
         case 119:
             EyeSettings.eyeTopMax = abs(EyeSettings.OffsetFromEyeCenter.y);
+            #if DEBUG
             imwrite("test/calib-top.png", frame);
+            #endif
             break;
     }
 }
 
+void cluster_image(Mat shapes_image, vector<Point> region_centers, Point &point_dst) {
+    // clear original image
+    shapes_image.setTo(cv::Scalar(255,255,255));
+    //choose random region
+    static int index = 0;
+//    int region = rand() % region_centers.size();
+    Point point = region_centers[index];
+    circle(shapes_image, point, 20, Scalar(0,255,0), -1);
+    point_dst = point;
+    index++;
+    if (index == region_centers.size())  {
+        index = 0;
+    }
+}
+
+vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_regions) {
+    vector<Point> regions_centers;
+    int region_width = shapes_image.cols / x_regions;
+    int region_height = shapes_image.rows / y_regions;
+    int start_center_x = region_width/2;
+    int start_center_y = region_height/2;
+    int curr_x = 0, curr_y = 0;
+
+    for (int x = 0; x < x_regions; x++) {
+        curr_x = start_center_x + ((x) * region_width);
+
+        for(int y = 0; y < y_regions; y++) {
+            curr_y = start_center_y + ((y) * region_height);
+            Point center(curr_x, curr_y);
+            regions_centers.push_back(center);
+            cout << "center: " << center << endl;
+        }
+    }
+    return regions_centers;
+}
+
+
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
-    bool doCalibrate = false;
+    bool doCalibrate = true;
     bool doTest = false;
     bool doTrain = false;
     bool showCam = false;
@@ -357,7 +449,6 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
     }
-
     if (showCam + doTrain + doTest > 1) {
         cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
         exit(1);
@@ -412,14 +503,24 @@ int main(int argc, char* argv[]) {
     cap >> frame;
     vector<Point> shapes{Point(100,100), Point(100,200), Point(200,200)};
     cvtColor(shape_grey, shape_screen, COLOR_GRAY2BGR);
+    shape_screen.setTo(cv::Scalar(255,255,255));
+    vector<Point> region_centers = find_regions_centers(shape_screen, shapes_x, shapes_y);
+    random_shuffle(region_centers.begin(), region_centers.end());
 
+    #if CLUSTERING
+    Point displaying;
+    cluster_image(shape_screen, region_centers, displaying);
+    #endif
+
+    int count = 0;
+    int timer = 0;
+    int record = 0;
     while (1) {
         Mat gray_image;
         vector<Rect> faces;
         cvtColor(frame, gray_image, COLOR_BGRA2GRAY);
-        shape_screen.setTo(cv::Scalar(255,255,255));
 
-        face_cascade.detectMultiScale(gray_image, faces, 1.8, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
+        face_cascade.detectMultiScale(gray_image, faces, 1.7, 2, 0|CV_HAAR_SCALE_IMAGE|CV_HAAR_FIND_BIGGEST_OBJECT);
 
         Point left_pupil, right_pupil;
         Rect left_eye, right_eye;
@@ -434,9 +535,13 @@ int main(int argc, char* argv[]) {
             break;
         }
 
-        if(doCalibrate) {
-            calibrate(EyeSettings, frame, wait_key, left_pupil, right_pupil, left_eye, right_eye);
-        }
+        EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
+        EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
+
+        EyeSettings.OffsetFromEyeCenter.x = EyeSettings.CenterPointOfEyes.x - (right_pupil.x + left_pupil.x)/2;
+        EyeSettings.OffsetFromEyeCenter.y = EyeSettings.CenterPointOfEyes.y - (right_pupil.y + left_pupil.y)/2;
+
+        ListenForCalibrate(wait_key);
 
         //space for test
         if(wait_key == 32)
@@ -451,7 +556,7 @@ int main(int argc, char* argv[]) {
                 file << to_string(EyeSettings.eyeRightMax) << ";";
                 file << to_string(EyeSettings.eyeTopMax) << ";";
                 file << to_string(EyeSettings.eyeBottomMax) << ";";
-                file << to_string(EyeSettings.count) << ";"
+                file << to_string(EyeSettings.count) << ";";
                 file.close();
             }
         }
@@ -509,7 +614,27 @@ int main(int argc, char* argv[]) {
             display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
             imshow("window", shape_screen);
             #endif
+
+            #if CLUSTERING
+            if(timer == duration) {
+                cluster_image(shape_screen, region_centers, displaying);
+                timer = 0;
+                record = 0;
+            }
+            timer++;
+            imshow("window", shape_screen);
+
+            //looking at new point, start recording data 'z'
+            if (wait_key == 122) {
+                record = 1;
+            }
+            if (record) {
+                display_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye, record, !doCalibrate);
+                cout << displaying.x << "," << displaying.y << ";" << endl;
+            }
+            #endif
         }
+        //imshow("window", frame);
 
         if(doCalibrate) {
             imshow("window", frame);
