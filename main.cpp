@@ -276,8 +276,8 @@ int main(int argc, char* argv[]) {
     int shapes_y = -1;
     ofstream file;
 
-    for(int i = 0; i < argc; i++) {
-        if (string("-").compare(string(argv[i]).substr(0,1))) {
+    for(int i = 1; i < argc; i++) {
+        if (string("-").compare(string(argv[i]).substr(0,1)) == 0) {
             if (string("--import").compare(argv[i]) == 0 || string("-i").compare(argv[i]) == 0) {
                 doImport = true;
             } else if (string("--export").compare(argv[i]) == 0 || string("-e").compare(argv[i]) == 0) {
@@ -288,34 +288,26 @@ int main(int argc, char* argv[]) {
                 showShapes = true;
             } else if (string("--show-cam").compare(argv[i]) == 0 || string("-sc").compare(argv[i]) == 0) {
                 showCam = true;
+            } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0) {
+                file.open(argv[i]);
+                if (!file) {
+                    cerr << "Failed to open <" << argv[i] << ">!";
+                    exit(1);
+                } else {
+                    hasCFile = true;
+                }
             } else {
                 cerr << "ERROR: No argument " << argv[i] << " exists!";
             }
-        } else if (!hasCFile) {
-            file.open(argv[i]);
-            if (!file) {
-                cerr << "Failed to open <" << argv[i] << ">!";
-                exit(1);
-            } else {
-                hasCFile = true;
-            }
-        } else if (i+1 < argc){
+        } else if (i+2 == argc){
             shapes_x = atoi(argv[i]);
             shapes_y = atoi(argv[i+1]);
-
+            break;
         } else {
-            cerr << "Too many arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]";
+            cerr << "Incorrect number of arguments! Syntax main [--import|-i] [--export|-e] [--calibrate|-c] [CALIBRATION_FILE] [SHAPES_X SHAPES_Y]" << i << argc;
         }
     }
-
-    cout << doImport << "\n";
-    cout << doExport << "\n";
-    cout << doCalibrate << "\n";
-    cout << showShapes << "\n";
-    cout << showCam << "\n";
-    cout << hasCFile << "\n";
-    cout << shapes_x << "\n";
-    cout << shapes_y << "\n";
+    
 
     exit(0);
     const int height = 900;
