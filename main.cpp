@@ -271,6 +271,22 @@ void display_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupi
     putText (color_image, text1 + " " + text2, cvPoint(20,700), FONT_HERSHEY_SIMPLEX, double(1), Scalar(255,0,0));
 }
 
+void display_googley_eyes(Mat color_image, Rect face, Point left_pupil, Point right_pupil, Rect left_eye_region, Rect right_eye_region) {
+    Mat face_image = color_image(face);
+
+    // draw eye regions
+    Point left_eye = Point(left_eye_region.x + left_eye_region.width / 2, left_eye_region.y + left_eye_region.height / 2);
+    Point right_eye = Point(right_eye_region.x + right_eye_region.width / 2, right_eye_region.y + right_eye_region.height / 2);
+
+    circle(face_image, left_eye, 50, Scalar(255, 255, 255), -1);
+    circle(face_image, right_eye, 50, Scalar(255, 255, 255), -1);
+
+    // draw pupils
+    circle(face_image, right_pupil, 25, Scalar(0, 0, 0), -1);
+    circle(face_image, left_pupil, 25, Scalar(0, 0, 0), -1);
+
+}
+
 Point closestPoint(vector<Point> shapes, Point guess){
     int best_dist = -1;
     Point best_point;
@@ -405,6 +421,7 @@ int main(int argc, char* argv[]) {
     bool doCalibrate = true;
     bool doTest = false;
     bool doTrain = false;
+    bool doGoogle = false ;
     bool showCam = false;
     bool hasFile = false;
     int shapes_x = -1;
@@ -539,6 +556,10 @@ int main(int argc, char* argv[]) {
             break;
         }
 
+        if (wait_key == 103) {
+            doGoogle = !doGoogle;
+        }
+
         EyeSettings.CenterPointOfEyes.x = ((right_eye.x + right_eye.width/2) + (left_eye.x + left_eye.width/2))/2;
         EyeSettings.CenterPointOfEyes.y = ((right_eye.y + right_eye.height/2) + (left_eye.y + left_eye.height/2))/2;
 
@@ -615,8 +636,16 @@ int main(int argc, char* argv[]) {
             EyeSettings.count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, region_centers, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)), (faces.size()>0?2:1));
-            imshow("window", shape_screen);
+            if (doGoogle) {
+                display_googley_eyes(frame, faces[0], left_pupil, right_pupil, left_eye, right_eye);
+                imshow("window", frame);
+            } else {
+                display_shapes_on_screen(shape_screen, region_centers,
+                                         Point(frame.cols * percentageWidth, frame.rows * (1 - percentageHeight)),
+                                         (faces.size() > 0 ? 2 : 1));
+                imshow("window", shape_screen);
+            }
+
             #endif
 
             #if CLUSTERING
