@@ -21,3 +21,8 @@ Point averge_distance(vector<Point> measured_points) {
     }
     return Point(sum_x/measured_points.size(), sum_y/measured_points.size());
 }
+
+int main(int argc, char* argv[]) {
+
+    return 0;
+}
