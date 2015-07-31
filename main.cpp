@@ -5,9 +5,12 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "constants.h"
 #include <sys/stat.h>
+#include <opencv2/ml/ml.hpp>
+
 
 using namespace std;
 using namespace cv;
+using namespace ml;
 
 
 #define DEBUG 0
@@ -387,17 +390,18 @@ vector<Point> find_regions_centers(Mat shapes_image, int x_regions, int y_region
     return regions_centers;
 }
 
-
 int main(int argc, char* argv[]) {
     bool doImport = false;
     bool doExport = false;
-    bool doCalibrate = true;
+    bool doCalibrate = false;
+    bool doKNearest = false;
     bool doTest = false;
     bool doTrain = false;
     bool showCam = false;
     bool hasFile = false;
     int shapes_x = -1;
     int shapes_y = -1;
+    string fileName;
     fstream file;
 
     for(int i = 1; i < argc; i++) {
@@ -414,13 +418,16 @@ int main(int argc, char* argv[]) {
                 doTest = true;
             } else if (string("--show-cam").compare(argv[i]) == 0 || string("-w").compare(argv[i]) == 0) {
                 doTrain = true;
+            } else if (string("--k-nearest").compare(argv[i]) == 0 || string("-k").compare(argv[i]) == 0) {
+                doKNearest = true;
             } else if (string("--file-name").compare(argv[i]) == 0 || string("-f").compare(argv[i]) == 0 || string("-F").compare(argv[i]) == 0) {
                 if (i+1 < argc) {
                     struct stat buffer;
-                    if (stat (string(argv[i+1]).c_str(), &buffer) != 0 || string("-F").compare(argv[i]) == 0                                           ) {
-                        file.open(argv[i + 1]);
+                    if ( !doExport || stat(string(argv[i+1]).c_str(), &buffer) != 0 || string("-F").compare(argv[i]) == 0) {
+                        fileName = argv[i + 1];
+                        file.open(fileName);
                         if (!file) {
-                            cerr << "Failed to open <" << argv[i] << ">!";
+                            cerr << "Failed to open <" << fileName << ">!";
                             exit(1);
                         } else {
                             hasFile = true;
@@ -449,6 +456,12 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
     }
+
+    if (doCalibrate + doKNearest > 1) {
+        cerr << "You can only do calibration OR K-Nearest Neighbor!";
+        exit(1);
+    }
+
     if (showCam + doTrain + doTest > 1) {
         cerr << "You cannot show the camera or train or test at the same time! (Mutually exclusive)";
         exit(1);
@@ -458,9 +471,16 @@ int main(int argc, char* argv[]) {
         cerr << "You must define a file! -f <FILENAME>";
     }
 
+    StatModel:: ::Params;
+    params.defaultK=5;
+    params.isclassifier=true;
+    Ptr<TrainData> knn;
+    Ptr<KNearest> knn1;
+
     string line;
     if(doImport) {
-            while(getline(file, line)) {
+        if (doCalibrate) {
+            while (getline(file, line)) {
                 vector<string> esArgs = split(line, ';');
                 if (esArgs.size() != 7) {
                     cerr << "ERROR: Malformed file imported!";
@@ -477,7 +497,53 @@ int main(int argc, char* argv[]) {
                 EyeSettings.eyeBottomMax = atoi(esArgs[5].c_str());
                 EyeSettings.count = atoi(esArgs[6].c_str());
             }
+        } else if (doKNearest) {
+            int i = 0, j = 0;
+            int lineCt = 0;
+            while (getline(file, line)) {
+                lineCt++;
+            }
+            file.close();
+            file.open(fileName);
+
+            int train[lineCt][8];
+            int resp[lineCt][2];
+
+            while (getline(file, line)) {
+                j = 0;
+                vector<string> points = split(line, ';');
+                if (points.size() != 5) {
+                    cerr << "ERROR: Malformed file imported!";
+                    exit(1);
+                }
+
+                for (string s : points) {
+                    vector<string> xy = split(s, ',');
+                    if (j <= 7) {
+                        train[i][j] = atoi(xy[0].c_str());
+                        train[i][j + 1] = atoi(xy[1].c_str());
+                    } else {
+                        resp[i][0] = atoi(xy[0].c_str());
+                        resp[i][1] = atoi(xy[1].c_str());
+                    }
+                    j +=2;
+                }
+                i++;
+            }
+
+            Mat t = Mat(lineCt, 8, CV_8UC1, train);
+            Mat r = Mat(lineCt, 2, CV_8UC1, resp);
+            knn = TrainData::create(t, ROW_SAMPLE, r);
+
+
+
         }
+    }
+
+    KNearest *k = ml::KNearest::create();
+    KNearest.train(t, 9, r);
+
+
 
     const int height = 900;
     const int width = 1440;
@@ -611,7 +677,30 @@ int main(int argc, char* argv[]) {
             EyeSettings.count++;
             imshow("window", frame);
             #else
-            display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+            if (doKNearest && doImport) {
+                int sample_dat[1][8];
+                sample_dat[0][0] = left_pupil.x;
+                sample_dat[0][1] = left_pupil.y;
+                sample_dat[0][2] = right_pupil.x;
+                sample_dat[0][3] = right_pupil.y;
+                sample_dat[0][4] = left_eye.x + left_eye.width / 2;
+                sample_dat[0][5] = left_eye.y + left_eye.height / 2;
+                sample_dat[0][6] = right_eye.x + right_eye.width / 2;
+                sample_dat[0][7] = right_eye.y + right_eye.height / 2;
+                Mat sample, guess_mat;
+                sample = Mat(1, 8, CV_8UC1, sample_dat);
+                k.findNearest(sample, 9, guess_mat);
+                cout << guess_mat.at(1,0) << "\n";
+                cout << guess_mat.at(1,2) << "\n";
+                cout << guess_mat.at(1,3) << "\n";
+                cout << guess_mat.at(1,4) << "\n";
+                cout << guess_mat.at(1,5) << "\n";
+                cout << guess_mat.at(1,6) << "\n";
+                cout << guess_mat.at(1,7) << "\n";
+                cout << guess_mat.at(1,8) << "\n";
+            } else {
+                display_shapes_on_screen(shape_screen, shapes, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+            }
             imshow("window", shape_screen);
             #endif
 
