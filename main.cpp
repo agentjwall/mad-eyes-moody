@@ -628,9 +628,10 @@ int main(int argc, char* argv[]) {
             }
             if(record < 20 && record > 0){
                 //actual sphere looking at, sphere it thinks we're looking at, exact screen point thinks looking at
-                cout << region_centers[currentShape] << ","
-                << closestPoint(region_centers, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight))) << ","
-                <<  Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)) << endl;
+                Point closestpoint = closestPoint(region_centers, Point(frame.cols*percentageWidth, frame.rows*(1-percentageHeight)));
+                cout << (int)region_centers[currentShape].x << "," << (int)region_centers[currentShape].y << ","
+                << (int)closestpoint.x << "," << (int)closestpoint.y << ","
+                <<  (int)frame.cols*percentageWidth << "," << (int)frame.rows*(1-percentageHeight) << endl;
                 circle(shape_screen, region_centers[currentShape], 4, Scalar(0,0,0), -1);
                 imshow("window", shape_screen);
 

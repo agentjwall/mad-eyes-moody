@@ -7,11 +7,20 @@
 using namespace cv;
 using namespace std;
 
-void percent_error(Point actual, Point measured, int pixels_x, int pixels_y) {
+Point percent_error(Point actual, Point measured, int pixels_x, int pixels_y) {
     double error_x = abs((actual.x/pixels_x) - (measured.x/pixels_x)) /
             (actual.x/pixels_x);
     double error_y = abs((actual.y/pixels_y) - (measured.y/pixels_y)) /
             (actual.y/pixels_y);
+    return Point(error_x * 100, error_y * 100);
+}
+
+double vector_average(vector<double> vector_list) {
+    double sum = 0;
+    for(int x = 0; x < vector_list.size(); x++) {
+        sum += vector_list[x];
+    }
+    return sum/vector_list.size();
 }
 
 
@@ -116,6 +125,7 @@ int main(int argc, char* argv[]) {
     int count = 0;
     string line_number = "0";
     Point expected;
+    vector<double> vector_hits, vector_hits_x, vector_hits_y;
 
     while (getline(myfile, line)) {
         if (line[0] != 'R') {
@@ -153,11 +163,16 @@ int main(int argc, char* argv[]) {
         else {
             if (count == num_data) {
                 cout << "regions " << line_number << " data" << endl;
-                cout << "hits: " << hits << " misses: " << misses << " PERCENT ERROR: " << endl;
-                cout << "hits on x-axis: " << hits_x << " misses on x-axis: " << misses_x << endl;
-                cout << "hits on y-axis: " << hits_y << " misses on y-axis: " << misses_y << endl;
+                cout << "hits: " << hits << " misses: " << misses << " PERCENT HITS: " << (double)hits/num_data * 100 << endl;
+                cout << "hits on x-axis: " << hits_x << " misses on x-axis: " << misses_x << " PERCENT HITS on x-axis: " << (double)hits_x/num_data * 100 << endl;
+                cout << "hits on y-axis: " << hits_y << " misses on y-axis: " << misses_y << " PERCENT HITS on y-axis: " << (double)hits_y/num_data * 100 << endl;
                 cout << "average guess point: " << sum_x/num_data << ", " << sum_y/num_data << endl;
                 cout << "expected point: " << expected.x << ", " << expected.y << endl;
+//                cout << "PERCENT ERROR: " << percent_error(expected, Point(sum_x/num_data, sum_y/num_data), 1440, 800) << endl;
+                cout << endl;
+                vector_hits.push_back((double)hits/num_data * 100);
+                vector_hits_x.push_back((double)hits_x/num_data * 100);
+                vector_hits_y.push_back((double)hits_y/num_data * 100);
 
                 hits = 0;
                 misses = 0;
@@ -175,12 +190,24 @@ int main(int argc, char* argv[]) {
 
     }
     cout << "regions " << line_number << " data" << endl;
-    cout << "hits: " << hits << " misses: " << misses << endl;
-    cout << "hits on x-axis: " << hits_x << " misses on x-axis: " << misses_x << endl;
-    cout << "hits on y-axis: " << hits_y << " misses on y-axis: " << misses_y << endl;
+    cout << "hits: " << hits << " misses: " << misses << " PERCENT HITS: " << (double)hits/num_data * 100<< endl;
+    cout << "hits on x-axis: " << hits_x << " misses on x-axis: " << misses_x << " PERCENT HITS on x-axis: " << (double)hits_x/num_data * 100<< endl;
+    cout << "hits on y-axis: " << hits_y << " misses on y-axis: " << misses_y << " PERCENT HITS on y-axis: " << (double)hits_y/num_data * 100<< endl;
     cout << "average guess point: " << sum_x/num_data << ", " << sum_y/num_data << endl;
     cout << "expected point: " << expected.x << ", " << expected.y << endl;
+//    cout << "PERCENT ERROR: " << percent_error(expected, Point(sum_x/num_data, sum_y/num_data), 1440, 800) << endl;
+    cout << endl;
+
+    vector_hits.push_back((double)hits/num_data * 100);
+    vector_hits_x.push_back((double)hits_x/num_data * 100);
+    vector_hits_y.push_back((double)hits_y/num_data * 100);
+
+    cout << "AVERAGE HITS: " << vector_average(vector_hits) << endl;
+    cout << "AVERAGE HITS X: " << vector_average(vector_hits_x) << endl;
+    cout << "AVERAGE HITS Y: " << vector_average(vector_hits_y) << endl;
 
     myfile.close();
+
+
     return 0;
 }
